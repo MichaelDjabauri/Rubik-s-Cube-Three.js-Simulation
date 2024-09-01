@@ -1,5 +1,7 @@
 # Rubik's Cube Simulation
 
+Project demo: https://michaeldjabauri.github.io/Rubik-s-Cube-Three.js-Simulation/
+
 Welcome to the Rubik's Cube Solver project! This is a personal project inspired by my love for puzzles and problem-solving. The goal is to create a fully functional Rubik's Cube simulator and solver that can be accessed online.
 
 ## Features
