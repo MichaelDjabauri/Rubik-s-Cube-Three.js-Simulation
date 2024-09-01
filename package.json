@@ -1,0 +1,16 @@
+{
+  "devDependencies": {
+    "gh-pages": "^6.1.1",
+    "vite": "^5.4.2"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "homepage": "https://MichaelDjabauri.github.io/Rubik-s-Cube-Three.js-Simulation/",
+  "dependencies": {
+    "three": "^0.168.0"
+  }
+}
