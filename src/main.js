@@ -37,4 +37,8 @@ document.addEventListener('keydown', (event) => {
         const direction = event.shiftKey ? 'counterclockwise' : 'clockwise';
         rotationHandler.rotateWhiteFace(direction);
     }
+    if (event.key === 'y' || event.key === 'Y') {
+        const direction = event.shiftKey ? 'counterclockwise' : 'clockwise';
+        rotationHandler.rotateYellowFace(direction);
+    }
 });

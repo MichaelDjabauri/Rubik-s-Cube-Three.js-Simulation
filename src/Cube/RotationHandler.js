@@ -1,86 +1,121 @@
 import * as THREE from 'three';
 
-class RotationHandler{
-    constructor (scene, rubiksCube){
+class RotationHandler {
+    constructor(scene, rubiksCube) {
         this.scene = scene;
         this.rubiksCube = rubiksCube;
-        this.ANGLES = {
-            clockwise : -Math.PI / 2,
-            counterClockwise: Math.PI / 2
-        }
+        this.currentSubCubesToRotate = [];
+        this.rotationAxes = this.getRotationAxes()
+        this.angles = this.getAngles()
+        this.faceColors = this.getFaceColors();
         this.INTERVAL_MS = 1;
         this.ROTATION_FRACTION = 0.05;
-        this.ROTATION_AXES = {
-            x : new THREE.Vector3(1, 0, 0),
-            y : new THREE.Vector3(0, 1, 0),
-            z : new THREE.Vector3(0, 0, 1)
-        }
     }
 
     rotateWhiteFace(direction) {
-        const subCubesToRotate = this.GetCubesOnWhiteFace();
-        const rotationAxis = this.ROTATION_AXES.z;
+        this.rotateFace(direction, this.faceColors.WHITE);
+    }
+    rotateYellowFace(direction) {
+        this.rotateFace(direction, this.faceColors.YELLOW);
+    }
+
+    rotateFace(direction, faceColor) {
+        this.currentSubCubesToRotate = this.getSubCubesToRotate(faceColor);
+        const rotationAxis = this.getRotationAxis(faceColor);
         const angle = this.getRotationAngle(direction);
-        let currentRotation = 0;
-    
+        this.currentRotation = 0;
+
         // Create a temporary group to rotate the cubes together
         const temporaryGroup = new THREE.Group();
-        subCubesToRotate.forEach(subCube => temporaryGroup.add(subCube));
+        this.currentSubCubesToRotate.forEach(subCube => temporaryGroup.add(subCube));
         this.scene.add(temporaryGroup);
-    
-        const step = this.ROTATION_FRACTION * Math.sign(angle);
+
+        const step = this.ROTATION_FRACTION * angle;
         const totalSteps = Math.abs(angle / step);
         let stepsCompleted = 0;
-    
+
         const rotationInterval = setInterval(() => {
             if (stepsCompleted < totalSteps) {
                 temporaryGroup.rotateOnAxis(rotationAxis, step);
-                currentRotation += step;
+                this.currentRotation += step;
                 stepsCompleted++;
             } else {
-                this.completeRotation(rotationInterval, temporaryGroup, rotationAxis, angle, currentRotation, subCubesToRotate);
+                this.completeRotation(rotationInterval, temporaryGroup, rotationAxis, angle);
             }
-        }, this.INTERVAL_MS); 
-    }    
+        }, this.INTERVAL_MS);
+    }
+
+    getRotationAxis(faceColor) {
+        if (faceColor === this.faceColors.WHITE || faceColor === this.faceColors.YELLOW) {
+            return this.rotationAxes.z;
+        }
+    }
 
     getRotationAngle(direction) {
         return (direction === 'clockwise') ?
-            this.ANGLES.clockwise :
-            this.ANGLES.counterClockwise;
+            this.angles.CLOCKWISE :
+            this.angles.COUNTER_CLOCKWISE;
     }
 
-    completeRotation(rotationInterval, group, rotationAxis, angle, currentRotation, subCubesToRotate) {
+    completeRotation(rotationInterval, group, rotationAxis, angle) {
         clearInterval(rotationInterval);
-        group.rotateOnAxis(rotationAxis, angle - currentRotation);
+        group.rotateOnAxis(rotationAxis, angle - this.currentRotation);
         group.updateMatrixWorld(true);
 
-        subCubesToRotate.forEach(subCube => {
+        this.currentSubCubesToRotate.forEach(subCube => {
             subCube.applyMatrix4(group.matrixWorld);
             this.scene.add(subCube);
             group.remove(subCube);
         });
 
         this.scene.remove(group);
+        this.currentSubCubesToRotate = [];
     }
 
-    IsRotationComplete(currentRotation, angle) {
-        const currentAngle = Math.abs(currentRotation);
-        const desiredAngle = Math.abs(angle);
-        const isRotationComplete = currentAngle >= desiredAngle;
+    getSubCubesToRotate(faceColor) {
+        const cubesOnGivenFace = [];
+        if (faceColor === this.faceColors.WHITE) {
+            this.rubiksCube.allSubCubes.forEach(subCube => {
+                if (subCube.position.z == 1) {
+                    cubesOnGivenFace.push(subCube);
+                }
+            });
+        }
+        if (faceColor === this.faceColors.YELLOW) {
+            this.rubiksCube.allSubCubes.forEach(subCube => {
+                if (subCube.position.z == -1) {
+                    cubesOnGivenFace.push(subCube);
+                }
+            });
+        }
 
-        return isRotationComplete;
+        return cubesOnGivenFace;
     }
 
-    GetCubesOnWhiteFace() {
-        const cubesOnWhiteFace = [];
+    getAngles() {
+        return {
+            CLOCKWISE: -Math.PI / 2,
+            COUNTER_CLOCKWISE: Math.PI / 2
+        };
+    }
 
-        this.rubiksCube.allSubCubes.forEach(subCube => {
-            if (subCube.position.z == 1) {
-                cubesOnWhiteFace.push(subCube);
-            }
-        })
+    getRotationAxes() {
+        return {
+            x: new THREE.Vector3(1, 0, 0),
+            y: new THREE.Vector3(0, 1, 0),
+            z: new THREE.Vector3(0, 0, 1)
+        };
+    }
 
-        return cubesOnWhiteFace;
+    getFaceColors(){
+        return {
+            GREEN: 'green',
+            BLUE: 'blue',
+            RED: 'red',
+            ORANGE: 'orange',
+            WHITE: 'white',
+            YELLOW: 'yellow'
+        };
     }
 }
 

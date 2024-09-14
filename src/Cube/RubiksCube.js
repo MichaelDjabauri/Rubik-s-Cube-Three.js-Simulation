@@ -162,8 +162,8 @@ class RubiksCube {
 
     setMaterials() {
         this.colorIndices = {
-            green: 0,   // Left
-            blue: 1,    // Right
+            green: 0,   // Right
+            blue: 1,    // Left
             red: 2,     // Top
             orange: 3,  // Bottom
             white: 4,   // Front
