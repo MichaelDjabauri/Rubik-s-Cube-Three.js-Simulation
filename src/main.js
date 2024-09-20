@@ -41,4 +41,20 @@ document.addEventListener('keydown', (event) => {
         const direction = event.shiftKey ? 'counterclockwise' : 'clockwise';
         rotationHandler.rotateYellowFace(direction);
     }
+    if (event.key === 'g' || event.key === 'G') {
+        const direction = event.shiftKey ? 'counterclockwise' : 'clockwise';
+        rotationHandler.rotateGreenFace(direction);
+    }
+    if (event.key === 'b' || event.key === 'B') {
+        const direction = event.shiftKey ? 'counterclockwise' : 'clockwise';
+        rotationHandler.rotateBlueFace(direction);
+    }
+    if (event.key === 'r' || event.key === 'R') {
+        const direction = event.shiftKey ? 'counterclockwise' : 'clockwise';
+        rotationHandler.rotateRedFace(direction);
+    }
+    if (event.key === 'o' || event.key === 'O') {
+        const direction = event.shiftKey ? 'counterclockwise' : 'clockwise';
+        rotationHandler.rotateOrangeFace(direction);
+    }
 });
