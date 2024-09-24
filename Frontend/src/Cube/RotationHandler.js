@@ -16,18 +16,23 @@ class RotationHandler {
     rotateWhiteFace(direction) {
         this.rotateFace(direction, this.faceColors.WHITE);
     }
+
     rotateYellowFace(direction) {
         this.rotateFace(direction, this.faceColors.YELLOW);
     }
+
     rotateGreenFace(direction) {
         this.rotateFace(direction, this.faceColors.GREEN);
     }
+
     rotateBlueFace(direction) {
         this.rotateFace(direction, this.faceColors.BLUE);
     }
+
     rotateRedFace(direction) {
         this.rotateFace(direction, this.faceColors.RED);
     }
+    
     rotateOrangeFace(direction) {
         this.rotateFace(direction, this.faceColors.ORANGE);
     }
