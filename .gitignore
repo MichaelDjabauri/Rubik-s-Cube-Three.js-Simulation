@@ -1,2 +1,2 @@
-# Ignore npm cache
-/frontend/node_modules/.cache/
+# Ignore node_modules
+/Frontend/node_modules/
