@@ -38,15 +38,15 @@ To get the project running locally, follow these steps:
    ```bash
    git clone https://github.com/MichaelDjab/Rubik-Cube-Simulator-Solver.git
 
-2. **Navigate to the frontend directory:**:
+2. **Navigate to the frontend directory:**
    ```bash
    cd Frontend
    
-3. **Install dependencies: Ensure you have Node.js installed, then install the required packages:**:
+3. **Install dependencies: Ensure you have Node.js installed, then install the required packages:**
    ```bash
    npm install
 
-4. **Run the development server: Start the local development server by running:**:
+4. **Run the development server: Start the local development server by running:**
    Open your terminal and run the following command:
    ```bash
    npm run dev
