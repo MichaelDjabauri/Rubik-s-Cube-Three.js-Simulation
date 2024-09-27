@@ -1,2 +1,2 @@
 exclude:
-  - node_modules
+  - /Frontend/node_modules
