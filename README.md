@@ -17,7 +17,10 @@ The Rubik's Cube Simulator & Solver is a 3D simulation project built using Three
 - **Scramble Cube**: Randomly scramble the cube to create a new puzzle to solve.
 - **Custom Color Configuration**: Manually configure the cube's colors.
 - **Configuration Validation**: Check if a custom cube configuration is solvable before attempting to solve it.
-- **Solution**: Get a solution to the cube given any valid configuration.
+- **Backend (C#)**: Handles the Rubik's Cube solving algorithms.
+- **Step-by-Step Solution Display**: View the solution steps to follow along with the solving process.
+- **Solution Animation**: Watch the cube being solved through an animated sequence, with controls to move forward or backward through the steps.
+- **Further Enhancements**: Additional features and improvements will be made over time, including new solving algorithms and UI enhancements.
 
 ## Getting Started
 
@@ -51,13 +54,6 @@ To get the project running locally, follow these steps:
    npm run dev
 
 5. **Open the project in your browser: Once the server starts, Vite will provide a local URL (e.g., http://localhost:5173/Rubik-s-Cube-Three.js-Simulation/). Open that URL in your browser to view the project.**:
-
-## Future Plans
-
-- **Backend (C#)**: Handles the Rubik's Cube solving algorithms.
-- **Step-by-Step Solution Display**: View the solution steps to follow along with the solving process.
-- **Solution Animation**: Watch the cube being solved through an animated sequence, with controls to move forward or backward through the steps.
-- **Further Enhancements**: Additional features and improvements will be made over time, including new solving algorithms and UI enhancements.
 
 ## Contributing
 
