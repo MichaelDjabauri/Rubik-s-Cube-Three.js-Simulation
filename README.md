@@ -47,7 +47,6 @@ To get the project running locally, follow these steps:
    npm install
 
 4. **Run the development server: Start the local development server by running:**
-   Open your terminal and run the following command:
    ```bash
    npm run dev
 
