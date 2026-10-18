@@ -1,73 +1,62 @@
-# Rubik's Cube Simulator & Solver
+# Rubik's Cube Three.js Simulation
 
-## Project Overview
+A browser-based 3D Rubik's Cube simulation built with Three.js and Vite. Rotate the cube with the keyboard and inspect it using the mouse.
 
-The Rubik's Cube Simulator & Solver is a 3D simulation project built using Three.js, which allows you to explore and solve a Rubik's Cube in a browser environment. The project uses C# for the backend logic and JavaScript for the front end, with Three.js handling the 3D graphics.
+[Open the live demo](https://michaeldjabauri.github.io/Rubik-s-Cube-Three.js-Simulation/)
 
-**[Check out the live demo here](https://michaeldjabauri.github.io/Rubik-s-Cube-Three.js-Simulation/)**
+## Run locally
 
-## Features
-- **3D Visualization**: A 3D representation of the Rubik's Cube with accurate colors.
-- **Face Rotation**: Rotate any face of the cube using the w, y, r, o, g or b keys to move the white, yellow, red, orange, green or blue face respectively.
-  
-## Comming Soon
-- **Rotation Improvements**: Rotate any face of the cube using buttons and mouse controls.
-- **Undo Move**: Undo your last move to experiment with different solutions.
-- **Cube Reset**: Reset the cube to its original solved state.
-- **Scramble Cube**: Randomly scramble the cube to create a new puzzle to solve.
-- **Custom Color Configuration**: Manually configure the cube's colors.
-- **Configuration Validation**: Check if a custom cube configuration is solvable before attempting to solve it.
-- **Backend (C#)**: Handles the Rubik's Cube solving algorithms.
-- **Step-by-Step Solution Display**: View the solution steps to follow along with the solving process.
-- **Solution Animation**: Watch the cube being solved through an animated sequence, with controls to move forward or backward through the steps.
-- **Further Enhancements**: Additional features and improvements will be made over time, including new solving algorithms and UI enhancements.
+Requirements: Node.js and npm.
 
-## Getting Started
+```bash
+git clone https://github.com/MichaelDjabauri/Rubik-s-Cube-Three.js-Simulation.git
+cd Rubik-s-Cube-Three.js-Simulation/Frontend
+npm install
+npm run dev
+```
 
-This project is still in development, but the following instructions will help you set up and run the Rubik's Cube Simulator & Solver.
+Open the local URL printed by Vite (usually `http://localhost:5173`). To create a production build, run `npm run build` from `Frontend`; the output is written to `Frontend/dist`.
 
-### Prerequisites
-To get the most out of this project, you should have:
-- Experience with solving or manipulating a Rubik's cube.
-- Basic knowledge of C#.
-- Basic knowledge of JavaScript.
-- Basic familiarity with Three.js.
+## Controls
 
-### Running the Project
+- Press `W`, `Y`, `G`, `B`, `R`, or `O` to rotate the white, yellow, green, blue, red, or orange face clockwise.
+- Hold `Shift` while pressing a face key to rotate it counterclockwise.
+- Drag with the mouse to orbit the camera; scroll to zoom.
 
-To get the project running locally, follow these steps:
+## Planned features
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/MichaelDjab/Rubik-Cube-Simulator-Solver.git
+- Add screen buttons and mouse controls for rotating cube faces.
+- Make sure the ui is mobile friendly
+- Add move undo and a reset to the solved state.
+- Add a control to scramble the cube.
+- Allow custom cube color configuration and validate whether a configuration is solvable.
+- Add ability to solve Rubik's Cube using various solving algorithms.
+- Display solutions step by step and animate them, with controls to move forward and backward through the steps.
+- Explore additional solving algorithms and user interface improvements.
 
-2. **Navigate to the frontend directory:**
-   ```bash
-   cd Frontend
-   
-3. **Install dependencies: Ensure you have Node.js installed, then install the required packages:**
-   ```bash
-   npm install
+## Architecture
 
-4. **Run the development server: Start the local development server by running:**
-   ```bash
-   npm run dev
+```text
+Frontend/
+├── index.html                 # Canvas and application entry point
+├── vite.config.js             # Vite build output and GitHub Pages base path
+└── src/
+    ├── main.js                # Scene setup, animation loop, controls, input
+    ├── Cube/
+    │   ├── RubiksCube.js      # 26 colored cubelets and their geometry
+    │   └── RotationHandler.js # Selects and animates face turns
+    └── Utils/
+        ├── Camera.js          # Perspective camera
+        ├── Light.js           # Directional and ambient lights
+        └── Renderer.js        # WebGL renderer attached to the canvas
+```
 
-5. **Open the project in your browser: Once the server starts, Vite will provide a local URL (e.g., http://localhost:5173/Rubik-s-Cube-Three.js-Simulation/). Open that URL in your browser to view the project.**:
+`main.js` creates the Three.js scene, camera, renderer, lighting, cube, and orbit controls. `RubiksCube` builds the cube from corner, edge, and center cubelets. `RotationHandler` finds cubelets on a selected face and animates a quarter-turn around the corresponding axis. The current project is a frontend simulation; it does not include a solver or backend.
 
-## Contributing
+## Deployment
 
-This project is a personal exploration, but bug reports and suggestions are welcome!
+The Vite build is configured for the GitHub Pages project path. `npm run deploy` builds the app and publishes `Frontend/dist` using `gh-pages`.
 
 ## License
 
-This project is licensed under the MIT License.
-
----
-
-**Note:** This project is not affiliated with Rubik's Cube or its parent company in any way.
-
----
-
-Thank you for checking out my Rubik's Cube Solver project. I hope you enjoy using it as much as I enjoyed building it!
-
+MIT. See [LICENSE](LICENSE).
