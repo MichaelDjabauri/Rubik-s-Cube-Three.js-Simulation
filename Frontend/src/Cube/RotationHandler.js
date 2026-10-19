@@ -1,50 +1,24 @@
 import * as THREE from 'three';
+import { FACES } from './faces.js';
 
+const TURN_DURATION_S = 0.2;
+
+// Animates face turns one at a time. Turns requested during an animation wait in a queue.
 class RotationHandler {
-    constructor(scene, rubiksCube) {
-        this.scene = scene;
+    constructor(rubiksCube) {
         this.rubiksCube = rubiksCube;
-        this.rotationAxes = this.getRotationAxes()
-        this.angles = this.getAngles()
-        this.faceColors = this.getFaceColors();
-        this.TURN_DURATION_S = 0.2;
-        this.FLOAT_ERROR = 0.01;
-
-        // Turns requested while another one is animating wait here
         this.turnQueue = [];
         this.currentTurn = null;
 
         // The turning layer is attached to this pivot at the cube's center and rotated as one group
         this.pivot = new THREE.Object3D();
-        this.scene.add(this.pivot);
+        this.rubiksCube.add(this.pivot);
     }
 
-    rotateWhiteFace(direction) {
-        this.rotateFace(direction, this.faceColors.WHITE);
-    }
-
-    rotateYellowFace(direction) {
-        this.rotateFace(direction, this.faceColors.YELLOW);
-    }
-
-    rotateGreenFace(direction) {
-        this.rotateFace(direction, this.faceColors.GREEN);
-    }
-
-    rotateBlueFace(direction) {
-        this.rotateFace(direction, this.faceColors.BLUE);
-    }
-
-    rotateRedFace(direction) {
-        this.rotateFace(direction, this.faceColors.RED);
-    }
-    
-    rotateOrangeFace(direction) {
-        this.rotateFace(direction, this.faceColors.ORANGE);
-    }
-
-    rotateFace(direction, faceColor) {
-        this.turnQueue.push({ direction, faceColor });
+    // color: the face's center color, e.g. 'white'
+    // direction: 'clockwise' or 'counterclockwise', as seen when looking straight at that face
+    rotateFace(color, direction) {
+        this.turnQueue.push({ color, direction });
     }
 
     // Called every frame from the render loop with the seconds since the last frame
@@ -57,159 +31,57 @@ class RotationHandler {
         }
 
         const turn = this.currentTurn;
-        turn.elapsed = Math.min(turn.elapsed + deltaSeconds, this.TURN_DURATION_S);
-        const progress = turn.elapsed / this.TURN_DURATION_S;
-        this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle * this.easeInOut(progress));
+        turn.elapsed = Math.min(turn.elapsed + deltaSeconds, TURN_DURATION_S);
+        const progress = turn.elapsed / TURN_DURATION_S;
+        this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle * easeInOut(progress));
 
         if (progress === 1) {
             this.completeTurn();
         }
     }
 
-    startTurn({ direction, faceColor }) {
+    startTurn({ color, direction }) {
+        const { normal } = FACES.find(face => face.color === color);
+
+        // Cubelets on a face sit 1 unit out along that face's normal
+        const cubelets = this.rubiksCube.cubelets.filter(cubelet => cubelet.position.dot(normal) > 0.5);
+
+        // attach() keeps each cubelet where it is in the world while making it a child of the pivot
         this.pivot.rotation.set(0, 0, 0);
-        const subCubes = this.getSubCubesToRotate(faceColor);
-        // attach() keeps each sub cube where it is in the world while making it a child of the pivot
-        subCubes.forEach(subCube => this.pivot.attach(subCube));
+        cubelets.forEach(cubelet => this.pivot.attach(cubelet));
 
         this.currentTurn = {
-            subCubes,
-            axis: this.getRotationAxis(faceColor),
-            angle: this.getRotationAngle(direction),
+            cubelets,
+            axis: normal,
+            // Clockwise, seen from outside the face, is a negative rotation around its outward normal
+            angle: direction === 'clockwise' ? -Math.PI / 2 : Math.PI / 2,
             elapsed: 0
         };
     }
 
     completeTurn() {
-        this.currentTurn.subCubes.forEach(subCube => {
-            this.scene.attach(subCube);
-            this.snapToGrid(subCube);
+        this.currentTurn.cubelets.forEach(cubelet => {
+            this.rubiksCube.attach(cubelet);
+            snapToGrid(cubelet);
         });
         this.pivot.rotation.set(0, 0, 0);
         this.currentTurn = null;
     }
+}
 
-    // Removes floating point error so it can't build up over many turns
-    snapToGrid(subCube) {
-        subCube.position.round();
+// Removes floating point error so it can't build up over many turns
+function snapToGrid(cubelet) {
+    cubelet.position.round();
 
-        // After quarter turns, every entry of a sub cube's rotation matrix is exactly -1, 0 or 1
-        const rotationMatrix = new THREE.Matrix4().makeRotationFromQuaternion(subCube.quaternion);
-        rotationMatrix.elements = rotationMatrix.elements.map(Math.round);
-        subCube.quaternion.setFromRotationMatrix(rotationMatrix);
-    }
+    // After quarter turns, every entry of a cubelet's rotation matrix is exactly -1, 0 or 1
+    const rotationMatrix = new THREE.Matrix4().makeRotationFromQuaternion(cubelet.quaternion);
+    rotationMatrix.elements = rotationMatrix.elements.map(Math.round);
+    cubelet.quaternion.setFromRotationMatrix(rotationMatrix);
+}
 
-    easeInOut(t) {
-        return t * t * (3 - 2 * t);
-    }
-    
-    getRotationAxis(faceColor) {
-        if (faceColor === this.faceColors.WHITE) {
-            return this.rotationAxes.z;
-        }
-        if (faceColor === this.faceColors.GREEN) {
-            return this.rotationAxes.x;
-        }
-        if (faceColor === this.faceColors.RED) {
-            return this.rotationAxes.y;
-        }
-        if (faceColor === this.faceColors.YELLOW) {
-            return this.rotationAxes.zp;
-        }
-        if (faceColor === this.faceColors.BLUE) {
-            return this.rotationAxes.xp;
-        }
-        if (faceColor === this.faceColors.ORANGE) {
-            return this.rotationAxes.yp;
-        }
-    }
-
-    getRotationAngle(direction) {
-        return (direction === 'clockwise') ?
-            this.angles.CLOCKWISE :
-            this.angles.COUNTER_CLOCKWISE;
-    }
-
-    getSubCubesToRotate(faceColor) {
-        const cubesOnGivenFace = [];
-        if (faceColor === this.faceColors.WHITE) {
-            this.rubiksCube.allSubCubes.forEach(subCube => {
-                if (this.aproximatelyEquals(subCube.position.z, 1)) {
-                    cubesOnGivenFace.push(subCube);
-                }
-            });
-        }
-        if (faceColor === this.faceColors.YELLOW) {
-            this.rubiksCube.allSubCubes.forEach(subCube => {
-                if (this.aproximatelyEquals(subCube.position.z, -1)) {
-                    cubesOnGivenFace.push(subCube);
-                }
-            });
-        }
-        if (faceColor === this.faceColors.GREEN) {
-            this.rubiksCube.allSubCubes.forEach(subCube => {
-                if (this.aproximatelyEquals(subCube.position.x, 1)) {
-                    cubesOnGivenFace.push(subCube);
-                }
-            });
-        }
-        if (faceColor === this.faceColors.BLUE) {
-            this.rubiksCube.allSubCubes.forEach(subCube => {
-                if (this.aproximatelyEquals(subCube.position.x, -1)) {
-                    cubesOnGivenFace.push(subCube);
-                }
-            });
-        }
-        if (faceColor === this.faceColors.RED) {
-            this.rubiksCube.allSubCubes.forEach(subCube => {
-                if (this.aproximatelyEquals(subCube.position.y, 1)) {
-                    cubesOnGivenFace.push(subCube);
-                }
-            });
-        }
-        if (faceColor === this.faceColors.ORANGE) {
-            this.rubiksCube.allSubCubes.forEach(subCube => {
-                if (this.aproximatelyEquals(subCube.position.y, -1)) {
-                    cubesOnGivenFace.push(subCube);
-                }
-            });
-        }
-
-        return cubesOnGivenFace;
-    }
-
-    aproximatelyEquals(floatA, floatB) {
-        return Math.abs(floatA - floatB) < this.FLOAT_ERROR;
-    }
-
-    getAngles() {
-        return {
-            CLOCKWISE: -Math.PI / 2,
-            COUNTER_CLOCKWISE: Math.PI / 2
-        };
-    }
-
-    getRotationAxes() {
-        return {
-            x: new THREE.Vector3(1, 0, 0),
-            y: new THREE.Vector3(0, 1, 0),
-            z: new THREE.Vector3(0, 0, 1),
-            xp: new THREE.Vector3(-1, 0, 0),
-            yp: new THREE.Vector3(0, -1, 0),
-            zp: new THREE.Vector3(0, 0, -1)
-        };
-    }
-
-    getFaceColors(){
-        return {
-            GREEN: 'green',
-            BLUE: 'blue',
-            RED: 'red',
-            ORANGE: 'orange',
-            WHITE: 'white',
-            YELLOW: 'yellow'
-        };
-    }
+// Starts and ends slowly, moving fastest in the middle (t goes from 0 to 1)
+function easeInOut(t) {
+    return t * t * (3 - 2 * t);
 }
 
 export default RotationHandler;

@@ -43,6 +43,7 @@ Frontend/
 └── src/
     ├── main.js                # Scene setup, animation loop, controls, input
     ├── Cube/
+    │   ├── faces.js           # Face colors and the direction each face points
     │   ├── RubiksCube.js      # 26 colored cubelets and their geometry
     │   └── RotationHandler.js # Selects and animates face turns
     └── Utils/
