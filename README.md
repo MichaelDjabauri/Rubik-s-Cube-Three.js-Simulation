@@ -6,7 +6,7 @@ A 3D Rubik's Cube that runs entirely in the browser, built with Three.js and Vit
 
 ## Run locally
 
-Requirements: Node.js 18+ and npm.
+Requirements: Node.js 20.19 or newer, and npm.
 
 ```bash
 git clone https://github.com/MichaelDjabauri/Rubik-s-Cube-Three.js-Simulation.git
@@ -28,7 +28,7 @@ Open the local URL printed by Vite (usually `http://localhost:5173/Rubik-s-Cube-
 
 ## Tests
 
-The tests use [Vitest](https://vitest.dev) and live next to the code they test, in files ending in `.test.js`. They run in Node without a browser, because the cube logic doesn't depend on the page. They check that the cube is built correctly (26 cubelets, 9 stickers of each color, each on an outward-facing side) and that face turns behave correctly: each turn moves the right pieces in the right direction, turns queue up while one is animating, and a long scramble followed by its reverse returns the cube to solved.
+The tests use [Vitest](https://vitest.dev) and live in `tests/`, which mirrors the folder structure of `src/`. For example, `src/cube/RubiksCube.js` is tested by `tests/cube/RubiksCube.test.js`. They run in Node without a browser, because the cube logic doesn't depend on the page. They check that the cube is built correctly (26 cubelets, 9 stickers of each color, each on an outward-facing side) and that face turns behave correctly: each turn moves the right pieces in the right direction, turns queue up while one is animating, and a long scramble followed by its reverse returns the cube to solved.
 
 ## Controls
 
@@ -56,12 +56,15 @@ src/
 ├── cube/
 │   ├── faces.js         # Face colors and the direction each face points
 │   ├── RubiksCube.js    # Builds the 26 colored cubelets as a THREE.Group
-│   ├── TurnAnimator.js  # Queues and animates face turns
-│   └── *.test.js        # Tests for the files above
+│   └── TurnAnimator.js  # Queues and animates face turns
 └── scene/
     ├── camera.js        # Perspective camera
     ├── lights.js        # Directional and ambient lights
     └── renderer.js      # WebGL renderer attached to the canvas
+tests/                   # Mirrors src/, one test file per source file
+└── cube/
+    ├── RubiksCube.test.js
+    └── TurnAnimator.test.js
 ```
 
 The cube is a group of 26 cubelets on a 3×3×3 grid centered on the origin. To turn a face, `TurnAnimator` attaches that face's nine cubelets to a temporary pivot, rotates the pivot over a few frames, then snaps the cubelets back onto the grid. Turns requested mid-animation wait in a queue.

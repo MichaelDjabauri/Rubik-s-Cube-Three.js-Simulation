@@ -44,10 +44,13 @@ window.addEventListener('resize', () => {
 });
 
 // Render loop: runs once per screen refresh
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
+// Pause the timer while the tab is hidden, so coming back doesn't count as one huge frame
+timer.connect(document);
 
-function animate() {
-    turnAnimator.update(clock.getDelta());
+function animate(timestamp) {
+    timer.update(timestamp);
+    turnAnimator.update(timer.getDelta());
     controls.update();
     renderer.render(scene, camera);
 }
