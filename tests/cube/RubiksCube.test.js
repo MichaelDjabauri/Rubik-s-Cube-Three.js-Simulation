@@ -31,4 +31,20 @@ describe('RubiksCube', () => {
             });
         }
     });
+
+    it('highlights only the cubelets on the chosen face, and removes the highlight again', () => {
+        const glowing = () => cube.cubelets.filter(cubelet => cubelet.material[0].emissive.getHex() !== 0);
+
+        cube.highlightFace('U');
+        expect(glowing()).toHaveLength(9);
+        expect(glowing().every(cubelet => cubelet.position.y === 1)).toBe(true);
+
+        cube.highlightFace(null);
+        expect(glowing()).toHaveLength(0);
+    });
+
+    it('gives every cubelet its own materials, so one can glow without the others', () => {
+        const materials = new Set(cube.cubelets.flatMap(cubelet => cubelet.material));
+        expect(materials.size).toBe(26 * 6);
+    });
 });

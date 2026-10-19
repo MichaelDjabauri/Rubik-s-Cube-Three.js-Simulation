@@ -134,6 +134,27 @@ describe('TurnAnimator', () => {
         expect(topEdge.position.toArray()).toEqual([1, 0, 1]);
     });
 
+    it('plays a turn with a custom duration', () => {
+        animator.queueMove({ face: 'F', turns: 1 }, 0.05);
+        animator.update(0.04);
+        expect(animator.currentTurn).not.toBeNull();
+        animator.update(0.02);
+        expect(animator.currentTurn).toBeNull();
+    });
+
+    it('plays several short turns within one frame', () => {
+        const topEdge = cubeletAt(0, 1, 1);
+        for (const move of parseMoves('F F F')) {
+            animator.queueMove(move, 0.005);
+        }
+        animator.update(FRAME_SECONDS);
+
+        expect(animator.currentTurn).toBeNull();
+        expect(animator.turnQueue).toHaveLength(0);
+        // Three clockwise turns equal one counterclockwise
+        expect(topEdge.position.equals(new THREE.Vector3(-1, 0, 1))).toBe(true);
+    });
+
     it('stays exactly on the grid after a long scramble, and undoing it returns to solved', () => {
         const random = seededRandom(42);
         const suffixes = ['', "'", '2'];

@@ -17,30 +17,40 @@ class TurnAnimator {
     }
 
     // move: a parsed move like { face: 'R', turns: 1 } (see notation.js)
-    queueMove(move) {
-        this.turnQueue.push(move);
+    // duration: optional length of the animation in seconds, e.g. shorter for a fast rewind
+    queueMove(move, duration = move.turns === 2 ? HALF_TURN_DURATION_S : QUARTER_TURN_DURATION_S) {
+        this.turnQueue.push({ ...move, duration });
     }
 
-    // Called every frame from the render loop with the seconds since the last frame
+    // Called every frame from the render loop with the seconds since the last frame.
+    // If turns are shorter than a frame, as in a fast rewind, several of them play in one frame.
     update(deltaSeconds) {
-        if (!this.currentTurn) {
-            if (this.turnQueue.length === 0) {
-                return;
+        let remaining = deltaSeconds;
+
+        while (remaining > 0) {
+            if (!this.currentTurn) {
+                if (this.turnQueue.length === 0) {
+                    return;
+                }
+                this.startTurn(this.turnQueue.shift());
             }
-            this.startTurn(this.turnQueue.shift());
-        }
 
-        const turn = this.currentTurn;
-        turn.elapsed = Math.min(turn.elapsed + deltaSeconds, turn.duration);
-        const progress = turn.elapsed / turn.duration;
-        this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle * easeInOut(progress));
+            const turn = this.currentTurn;
+            const timeLeft = turn.duration - turn.elapsed;
 
-        if (progress === 1) {
-            this.completeTurn();
+            if (remaining >= timeLeft) {
+                remaining -= timeLeft;
+                this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle);
+                this.completeTurn();
+            } else {
+                turn.elapsed += remaining;
+                remaining = 0;
+                this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle * easeInOut(turn.elapsed / turn.duration));
+            }
         }
     }
 
-    startTurn({ face, turns }) {
+    startTurn({ face, turns, duration }) {
         const { normal } = FACES.find(candidate => candidate.notation === face);
 
         // Cubelets on a face sit 1 unit out along that face's normal
@@ -55,7 +65,7 @@ class TurnAnimator {
             axis: normal,
             // A clockwise quarter turn, seen from outside the face, is -90° around its outward normal
             angle: -turns * Math.PI / 2,
-            duration: turns === 2 ? HALF_TURN_DURATION_S : QUARTER_TURN_DURATION_S,
+            duration,
             elapsed: 0
         };
     }

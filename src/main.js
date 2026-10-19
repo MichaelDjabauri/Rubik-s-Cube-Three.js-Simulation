@@ -4,6 +4,10 @@ import { createCamera } from './scene/camera.js';
 import { createRenderer } from './scene/renderer.js';
 import { createLights } from './scene/lights.js';
 import Cube from './cube/Cube.js';
+import { commandForKey } from './input/keyboard.js';
+import { setUpMouseTurns } from './input/mouse.js';
+import { createToolbar } from './ui/toolbar.js';
+import { createMoveButtons } from './ui/moveButtons.js';
 
 // Scene, camera, renderer and lights
 const scene = new THREE.Scene();
@@ -15,24 +19,41 @@ scene.add(...createLights());
 const cube = new Cube();
 scene.add(cube.model);
 
-// Mouse controls: drag to orbit the camera, scroll to zoom
+// Camera controls: drag the background to orbit, scroll to zoom
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
-// Keyboard uses standard notation: a face's letter turns it clockwise, Shift + letter counterclockwise.
-// U up, D down, F front, B back, R right, L left. Which color is on which face is listed in cube/faces.js.
-const FACE_KEYS = new Set(['U', 'D', 'F', 'B', 'R', 'L']);
+// Commands come from the keyboard, the mouse and the buttons, e.g. { type: 'move', notation: "R'" } or { type: 'undo' }
+const toolbar = createToolbar(runCommand);
+toolbar.update(cube);
+createMoveButtons(runCommand, notation => cube.model.highlightFace(notation));
+setUpMouseTurns({ camera, canvas: renderer.domElement, cubeModel: cube.model, controls, onCommand: runCommand });
 
+function runCommand(command) {
+    if (command.type === 'move') {
+        cube.move(command.notation);
+    } else if (command.type === 'scramble') {
+        cube.scramble();
+    } else if (command.type === 'undo') {
+        cube.undo();
+    } else if (command.type === 'redo') {
+        cube.redo();
+    } else if (command.type === 'reset') {
+        cube.reset();
+    }
+    toolbar.update(cube);
+}
+
+// Keyboard: face letters in standard notation, Ctrl+Z to undo, Ctrl+Shift+Z to redo (see input/keyboard.js)
 document.addEventListener('keydown', (event) => {
-    const face = event.key.toUpperCase();
-
-    // Ignore other keys, and auto-repeat from a held key so it doesn't flood the turn queue
-    if (!FACE_KEYS.has(face) || event.repeat) {
+    const command = commandForKey(event);
+    if (!command) {
         return;
     }
-
-    cube.move(event.shiftKey ? `${face}'` : face);
+    // Stop the browser from running its own action for the key, like its own undo
+    event.preventDefault();
+    runCommand(command);
 });
 
 // Keep the view undistorted when the window is resized

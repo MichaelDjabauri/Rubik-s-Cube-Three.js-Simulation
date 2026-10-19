@@ -12,11 +12,84 @@
         canvas {
             display: block;
         }
+
+        .toolbar {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Light buttons with dark text, so they stand out clearly against the black background */
+        button {
+            font: 600 18px system-ui, sans-serif;
+            padding: 12px 28px;
+            color: #111111;
+            background: #e8e8e8;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        button:hover:not(:disabled) {
+            background: #ffffff;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        /* Face-turn buttons on the right: one row per face, with a stripe in the face's color */
+        #move-buttons {
+            position: fixed;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .move-row {
+            display: flex;
+            gap: 6px;
+            padding-left: 10px;
+            border-left: 6px solid var(--face-color);
+            border-radius: 3px;
+        }
+
+        .move-row button {
+            font-size: 16px;
+            width: 56px;
+            padding: 8px 0;
+        }
+
+        /* The latest scramble, at the top of the screen */
+        #scramble-text {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #e8e8e8;
+            font: 500 18px ui-monospace, Menlo, monospace;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
 <body>
     <canvas id="c"></canvas>
+    <div id="scramble-text"></div>
+    <div id="move-buttons"></div>
+    <div class="toolbar">
+        <button id="scramble" title="Mix up the cube with 25 random moves">Scramble</button>
+        <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+        <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+        <button id="reset" title="Rewind every move back to solved">Reset</button>
+    </div>
     <script type="module" src="./src/main.js"></script>
 </body>
 

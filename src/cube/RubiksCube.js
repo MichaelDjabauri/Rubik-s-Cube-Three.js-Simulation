@@ -3,6 +3,8 @@ import { FACES } from './faces.js';
 
 // Slightly smaller than the 1-unit grid spacing so the gaps between cubelets show
 const CUBELET_SIZE = 0.95;
+// The soft glow added to a face's cubelets to preview it, e.g. while hovering its button
+const HIGHLIGHT_GLOW = 0x444444;
 
 // A 3x3x3 cube centered on the origin, made of 26 cubelets at integer positions from -1 to 1
 class RubiksCube extends THREE.Group {
@@ -10,8 +12,6 @@ class RubiksCube extends THREE.Group {
         super();
 
         const geometry = new THREE.BoxGeometry(CUBELET_SIZE, CUBELET_SIZE, CUBELET_SIZE);
-        const faceMaterials = FACES.map(face => new THREE.MeshPhongMaterial({ color: face.hex }));
-        const insideMaterial = new THREE.MeshPhongMaterial({ color: '#000000' });
 
         this.cubelets = [];
 
@@ -25,10 +25,11 @@ class RubiksCube extends THREE.Group {
 
                     const position = new THREE.Vector3(x, y, z);
 
-                    // A side gets its face's color only if it points out of the cube; inner sides are black
-                    const materials = FACES.map((face, index) =>
-                        position.dot(face.normal) === 1 ? faceMaterials[index] : insideMaterial
-                    );
+                    // A side gets its face's color only if it points out of the cube; inner sides are black.
+                    // Each cubelet gets its own materials so it can be highlighted on its own.
+                    const materials = FACES.map(face => new THREE.MeshPhongMaterial({
+                        color: position.dot(face.normal) === 1 ? face.hex : '#000000'
+                    }));
 
                     const cubelet = new THREE.Mesh(geometry, materials);
                     cubelet.position.copy(position);
@@ -36,6 +37,16 @@ class RubiksCube extends THREE.Group {
                     this.cubelets.push(cubelet);
                 }
             }
+        }
+    }
+
+    // Makes the cubelets on one face glow softly, e.g. 'U'. Pass null to remove the glow.
+    highlightFace(notation) {
+        const face = FACES.find(candidate => candidate.notation === notation);
+
+        for (const cubelet of this.cubelets) {
+            const glows = face !== undefined && cubelet.position.dot(face.normal) > 0.5;
+            cubelet.material.forEach(material => material.emissive.setHex(glows ? HIGHLIGHT_GLOW : 0x000000));
         }
     }
 }
