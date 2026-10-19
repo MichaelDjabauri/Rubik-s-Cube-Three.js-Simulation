@@ -54,6 +54,7 @@ The keyboard uses standard Rubik's Cube notation, where faces are named by their
 - Use the buttons at the bottom to scramble, undo, redo, or reset. Scramble plays 25 random moves and shows them at the top of the screen. Reset rewinds every move quickly back to the start: the solved cube, or the cube you copied in.
 - Use **Copy my cube** to paint your own real cube into the app (see below).
 - Press the **?** button (or the `?` key) for a list of every control. First-time visitors also get a short hint.
+- The sun or moon button in the top-left corner switches between the dark and light theme. The app starts in your system's theme and remembers your pick.
 - Double-click or double-tap to swing the camera back to its starting view. Leave the cube alone for a while and the camera slowly circles it, until you touch anything.
 - Solve a scrambled or copied cube with your own moves and the cube celebrates: it hops and spins, confetti flies, and a message tells you how many moves you took. If your system is set to reduce motion, you only get the message.
 
@@ -113,14 +114,16 @@ src/
 │   ├── editor.js        # The "Copy my cube" editor
 │   ├── help.js          # The help overlay listing every control
 │   ├── firstVisitHint.js # The one-time hint for new visitors
+│   ├── theme.js         # The dark and light theme, and the button that switches them
+│   ├── storage.js       # Settings remembered in the browser, e.g. the theme
 │   └── solvedMessage.js # The "Solved!" message
 └── scene/
     ├── camera.js        # Perspective camera, and fitting the whole cube on any screen
     ├── cameraGuide.js   # Swings the camera to a face, for the editor
     ├── celebration.js   # The hop, spin and confetti when you solve the cube
     ├── idleShowcase.js  # Slowly circles the camera when nobody is touching anything
-    ├── lights.js        # Directional and ambient lights
-    └── renderer.js      # WebGL renderer attached to the canvas
+    ├── lights.js        # Studio lights, reflections, and the floor that catches the cube's shadow
+    └── renderer.js      # WebGL renderer with shadows, drawn over the page's backdrop
 tests/                   # Mirrors src/, one test file per source file
 ├── main.test.js         # Smoke test: starts the whole app and uses it
 ├── cube/
@@ -152,11 +155,13 @@ tests/                   # Mirrors src/, one test file per source file
 │   ├── help.test.js
 │   ├── moveButtons.test.js
 │   ├── solvedMessage.test.js
+│   ├── storage.test.js
+│   ├── theme.test.js
 │   └── toolbar.test.js
 └── helpers/             # Shared test code, e.g. reading stickers off the 3D model
 ```
 
-The cube has two sides that always agree. `CubeState` is the logical cube: it stores the color of all 54 stickers in the standard facelet format used by Kociemba solvers, and it is the source of truth. `RubiksCube` is the 3D model: 26 cubelets on a 3×3×3 grid centered on the origin. A move like `R` updates `CubeState` immediately, then `TurnAnimator` animates the 3D model to match by attaching that face's nine cubelets to a temporary pivot, rotating the pivot over a few frames, and snapping the cubelets back onto the grid. Moves requested mid-animation wait in a queue. `Cube` also keeps the history of moves for undo, redo, and reset, which plays the history backwards at high speed. Mouse turns are tested against an invisible box the size of the cube rather than the moving cubelets, so grabbing works even mid-turn, and the hit point maps straight onto the grid. The cube editor uses the same picking to paint stickers. A copied cube is loaded with `Cube.loadState`, which recolors the stickers and makes that cube the new starting point.
+The cube has two sides that always agree. `CubeState` is the logical cube: it stores the color of all 54 stickers in the standard facelet format used by Kociemba solvers, and it is the source of truth. `RubiksCube` is the 3D model: 26 cubelets on a 3×3×3 grid centered on the origin, each a rounded black body with a glossy sticker on every outer side. A move like `R` updates `CubeState` immediately, then `TurnAnimator` animates the 3D model to match by attaching that face's nine cubelets to a temporary pivot, rotating the pivot over a few frames (going slightly past the target and settling back, like a real cube), and snapping the cubelets back onto the grid. Moves requested mid-animation wait in a queue. `Cube` also keeps the history of moves for undo, redo, and reset, which plays the history backwards at high speed. Mouse turns are tested against an invisible box the size of the cube rather than the moving cubelets, so grabbing works even mid-turn, and the hit point maps straight onto the grid. The cube editor uses the same picking to paint stickers. A copied cube is loaded with `Cube.loadState`, which recolors the stickers and makes that cube the new starting point.
 
 ## Deployment
 

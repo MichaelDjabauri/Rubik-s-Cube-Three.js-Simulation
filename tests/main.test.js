@@ -13,6 +13,7 @@ vi.mock('three', async (importOriginal) => {
         constructor({ canvas }) {
             this.domElement = canvas;
             this.renderCount = 0;
+            this.shadowMap = {};
             FakeRenderer.latest = this;
         }
         setPixelRatio() {}
@@ -22,11 +23,20 @@ vi.mock('three', async (importOriginal) => {
         }
         render(scene, camera) {
             this.renderCount++;
-            this.camera = camera; // So tests can see where the camera is
+            this.scene = scene; // So tests can see what is drawn
+            this.camera = camera; // and where the camera is
         }
     }
 
-    return { ...three, WebGLRenderer: FakeRenderer };
+    // Makes the studio reflections; the real one needs WebGL
+    class FakePMREMGenerator {
+        fromScene() {
+            return { texture: new three.Texture() };
+        }
+        dispose() {}
+    }
+
+    return { ...three, WebGLRenderer: FakeRenderer, PMREMGenerator: FakePMREMGenerator };
 });
 
 // The real page body from index.html, minus the script tag; the test starts the app itself
@@ -43,6 +53,7 @@ async function startApp({ width = 1024, height = 768 } = {}) {
     window.localStorage.clear(); // Every test is someone's first visit
     document.body.innerHTML = BODY;
     document.body.className = '';
+    delete document.documentElement.dataset.theme;
     vi.resetModules();
     clock = performance.now();
     await import('../src/main.js');
@@ -190,7 +201,7 @@ describe('the app', () => {
         runFrames(0.1);
     });
 
-        it('copes with the window changing size', () => {
+    it('copes with the window changing size', () => {
         window.dispatchEvent(new Event('resize'));
         $('#edit').click();
         window.dispatchEvent(new Event('resize'));
@@ -202,6 +213,32 @@ describe('the app', () => {
         expect(window.matchMedia('(max-width: 700px)').matches).toBe(true);
         runFrames(0.1);
         expect(renderer.renderCount).toBeGreaterThan(1);
+    });
+
+    it('sets up the studio: reflections, lights, and a floor that catches the shadow', async () => {
+        const { Scene, DirectionalLight, ShadowMaterial } = await import('three');
+        runFrames(0.1);
+        const scene = renderer.scene;
+        expect(scene).toBeInstanceOf(Scene);
+        expect(scene.environment).not.toBeNull();
+        expect(scene.children.some(child => child instanceof DirectionalLight && child.castShadow)).toBe(true);
+        expect(scene.children.some(child => child.material instanceof ShadowMaterial)).toBe(true);
+        expect(renderer.shadowMap.enabled).toBe(true);
+    });
+
+    it('switches between the dark and light theme with the theme button, and remembers the pick', () => {
+        const root = document.documentElement;
+        const system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        const other = system === 'light' ? 'dark' : 'light';
+        expect(root.dataset.theme).toBe(system);
+
+        $('#theme-button').click();
+        expect(root.dataset.theme).toBe(other);
+        expect(window.localStorage.getItem('rubiks-cube.theme')).toBe(other);
+
+        $('#theme-button').click();
+        expect(root.dataset.theme).toBe(system);
+        expect(window.localStorage.getItem('rubiks-cube.theme')).toBeNull();
     });
 
     it('shows a hint on the first visit, until the first key press', () => {

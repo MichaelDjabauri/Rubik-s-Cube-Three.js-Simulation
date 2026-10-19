@@ -6,7 +6,71 @@
     <!-- Render at the phone's real width instead of as a zoomed-out desktop page, and use the whole screen around the notch -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Rubik's Cube Simulation</title>
+    <script>
+        // Picks the dark or light theme before the page is first drawn, so it never flashes the wrong one.
+        // A theme the user picked wins, otherwise the system setting. src/ui/theme.js takes over from here.
+        (function () {
+            var saved = null;
+            try {
+                saved = localStorage.getItem('rubiks-cube.theme');
+            } catch (error) {
+                // Storage is blocked; follow the system
+            }
+            var systemLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+            document.documentElement.dataset.theme = saved === 'light' || saved === 'dark' ? saved : systemLight ? 'light' : 'dark';
+        })();
+    </script>
     <style>
+        /* Every color on the page, for the dark theme (the default) and the light theme */
+        :root {
+            color-scheme: dark;
+            /* The studio backdrop: a soft vertical sweep, darkened a little towards the edges */
+            --backdrop: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0, 0, 0, 0.45) 100%),
+                linear-gradient(#34373d, #16171a);
+            --text: #e8e8e8;
+            --button-text: #111111;
+            --button: #e8e8e8;
+            --button-hover: #ffffff;
+            --button-shadow: none;
+            --dim: rgba(0, 0, 0, 0.65);
+            --panel: #1d1d1f;
+            --hint: rgba(29, 29, 31, 0.92);
+            --kbd: #3a3a3c;
+            --solved-text: #ffffff;
+            --solved-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+            --ok: #8ee59a;
+            --problem: #ffb4a8;
+            --too-many: #ff8a80;
+            --current-step: #5aa9ff;
+            --complete-step: #3fbf5f;
+            --swatch-border: rgba(255, 255, 255, 0.3);
+            --swatch-selected: #ffffff;
+        }
+
+        :root[data-theme="light"] {
+            color-scheme: light;
+            --backdrop: radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(60, 70, 90, 0.18) 100%),
+                linear-gradient(#fbfbfc, #dcdfe4);
+            --text: #1d1d1f;
+            --button-text: #1d1d1f;
+            --button: #ffffff;
+            --button-hover: #f0f0f2;
+            --button-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+            --dim: rgba(40, 40, 50, 0.35);
+            --panel: #ffffff;
+            --hint: rgba(255, 255, 255, 0.95);
+            --kbd: #e6e6ea;
+            --solved-text: #1d1d1f;
+            --solved-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
+            --ok: #1e8a3c;
+            --problem: #c62828;
+            --too-many: #d32f2f;
+            --current-step: #2f7fe0;
+            --complete-step: #2fa84f;
+            --swatch-border: rgba(0, 0, 0, 0.2);
+            --swatch-selected: #1d1d1f;
+        }
+
         /* The page itself never scrolls, bounces or gets text-selected; all interaction is with the cube and buttons */
         html,
         body {
@@ -14,7 +78,7 @@
             margin: 0;
             overflow: hidden;
             overscroll-behavior: none;
-            background: #000000;
+            background: var(--backdrop);
             user-select: none;
             -webkit-user-select: none;
         }
@@ -33,16 +97,19 @@
             bottom: 32px;
             left: 50%;
             transform: translateX(-50%);
+            /* As wide as its buttons need, so their labels don't wrap (left: 50% would only leave it half the screen) */
+            width: max-content;
             display: flex;
             gap: 12px;
         }
 
-        /* Light buttons with dark text, so they stand out clearly against the black background */
+        /* Light buttons with dark text, so they stand out clearly against the backdrop */
         button {
             font: 600 18px system-ui, sans-serif;
             padding: 12px 28px;
-            color: #111111;
-            background: #e8e8e8;
+            color: var(--button-text);
+            background: var(--button);
+            box-shadow: var(--button-shadow);
             border: none;
             border-radius: 10px;
             cursor: pointer;
@@ -54,12 +121,12 @@
         /* Only on devices that can hover; on touch screens a hover style would stay stuck after a tap */
         @media (hover: hover) {
             button:hover:not(:disabled) {
-                background: #ffffff;
+                background: var(--button-hover);
             }
         }
 
         button:active:not(:disabled) {
-            background: #ffffff;
+            background: var(--button-hover);
         }
 
         button:disabled {
@@ -98,7 +165,7 @@
             top: 24px;
             left: 50%;
             transform: translateX(-50%);
-            color: #e8e8e8;
+            color: var(--text);
             font: 500 18px ui-monospace, Menlo, monospace;
             white-space: nowrap;
             /* The rest of the page can't be selected, but this can, e.g. to copy a scramble */
@@ -110,16 +177,34 @@
             display: none;
         }
 
-        /* The round ? button in the top-right corner */
-        #help-button {
+        /* The round buttons in the top corners: the theme on the left, help on the right */
+        .corner-button {
             position: fixed;
             top: calc(16px + env(safe-area-inset-top));
-            right: calc(16px + env(safe-area-inset-right));
             width: 44px;
             height: 44px;
             padding: 0;
             border-radius: 50%;
             font-size: 22px;
+        }
+
+        #help-button {
+            right: calc(16px + env(safe-area-inset-right));
+        }
+
+        #theme-button {
+            left: calc(16px + env(safe-area-inset-left));
+        }
+
+        /* The theme button shows the theme it switches to: a moon in the light theme, a sun in the dark one */
+        #theme-button svg {
+            display: block;
+            margin: auto;
+        }
+
+        :root[data-theme="light"] #theme-button .icon-sun,
+        :root:not([data-theme="light"]) #theme-button .icon-moon {
+            display: none;
         }
 
         /* The help overlay: a dimmed background with a scrollable panel in the middle */
@@ -129,7 +214,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(0, 0, 0, 0.65);
+            background: var(--dim);
         }
 
         .help-panel {
@@ -139,8 +224,9 @@
             box-sizing: border-box;
             padding: 20px 24px 24px;
             border-radius: 14px;
-            background: #1d1d1f;
-            color: #e8e8e8;
+            background: var(--panel);
+            color: var(--text);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
             font: 400 16px/1.45 system-ui, sans-serif;
             user-select: text;
             -webkit-user-select: text;
@@ -168,7 +254,7 @@
         kbd {
             padding: 1px 6px;
             border-radius: 5px;
-            background: #3a3a3c;
+            background: var(--kbd);
             font: 600 14px ui-monospace, Menlo, monospace;
         }
 
@@ -191,8 +277,9 @@
             box-sizing: border-box;
             padding: 10px 10px 10px 16px;
             border-radius: 12px;
-            background: rgba(29, 29, 31, 0.92);
-            color: #e8e8e8;
+            background: var(--hint);
+            color: var(--text);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
             font: 500 15px system-ui, sans-serif;
         }
 
@@ -211,9 +298,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            color: #ffffff;
+            color: var(--solved-text);
             font: 600 22px system-ui, sans-serif;
-            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+            text-shadow: var(--solved-shadow);
             pointer-events: none;
             opacity: 0;
         }
@@ -250,6 +337,7 @@
         body.editing #move-buttons,
         body.editing #cube-info,
         body.editing #help-button,
+        body.editing #theme-button,
         body.editing #hint {
             display: none;
         }
@@ -261,7 +349,7 @@
             left: 50%;
             transform: translateX(-50%);
             width: min(760px, calc(100% - 32px));
-            color: #e8e8e8;
+            color: var(--text);
             font: 500 16px system-ui, sans-serif;
             text-align: center;
         }
@@ -294,11 +382,11 @@
         }
 
         .editor-status.ok {
-            color: #8ee59a;
+            color: var(--ok);
         }
 
         .editor-status.problem {
-            color: #ffb4a8;
+            color: var(--problem);
         }
 
         .editor-steps,
@@ -314,13 +402,13 @@
         }
 
         .editor-steps button.current {
-            outline: 3px solid #5aa9ff;
+            outline: 3px solid var(--current-step);
             outline-offset: 2px;
         }
 
         /* A green bar along the bottom of the tab once all of that face's stickers are painted */
         .editor-steps button.complete {
-            box-shadow: inset 0 -5px 0 #3fbf5f;
+            box-shadow: inset 0 -5px 0 var(--complete-step), var(--button-shadow);
         }
 
         .editor-palette {
@@ -335,7 +423,8 @@
             gap: 6px;
             padding: 0;
             background: transparent;
-            color: #e8e8e8;
+            box-shadow: none;
+            color: var(--text);
             font-size: 14px;
         }
 
@@ -355,17 +444,17 @@
             height: 56px;
             border-radius: 10px;
             background: var(--swatch);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid var(--swatch-border);
             box-sizing: border-box;
         }
 
         .swatch.selected .swatch-color {
-            outline: 4px solid #ffffff;
+            outline: 4px solid var(--swatch-selected);
             outline-offset: 3px;
         }
 
         .swatch-count.over {
-            color: #ff8a80;
+            color: var(--too-many);
         }
 
         .editor-actions button.primary:not(:disabled) {
@@ -383,6 +472,7 @@
             .toolbar {
                 left: 16px;
                 right: 16px;
+                width: auto;
                 bottom: calc(16px + env(safe-area-inset-bottom));
                 transform: none;
                 gap: 8px;
@@ -488,7 +578,7 @@
 
             #cube-info {
                 top: calc(12px + env(safe-area-inset-top));
-                /* Room on both sides for the ? button, keeping the text centered */
+                /* Room on both sides for the theme and ? buttons */
                 left: 68px;
                 right: 68px;
                 transform: none;
@@ -509,10 +599,10 @@
 
         /* Phones held sideways (short screens): toolbar in a column on the left, compact face buttons on the right */
         @media (max-height: 500px) and (min-width: 701px) {
-            /* The face buttons fill the right side, so the ? button moves to the top-left corner */
+            /* The face buttons fill the right side, so the ? button moves to the top-left corner, beside the theme button */
             #help-button {
                 right: auto;
-                left: calc(16px + env(safe-area-inset-left));
+                left: calc(16px + 44px + 12px + env(safe-area-inset-left));
             }
 
             #hint {
@@ -592,7 +682,16 @@
     <canvas id="c"></canvas>
     <div id="cube-info"></div>
     <div id="solved-message" aria-live="polite"></div>
-    <button id="help-button" title="Help (?)" aria-label="Help">?</button>
+    <button id="help-button" class="corner-button" title="Help (?)" aria-label="Help">?</button>
+    <button id="theme-button" class="corner-button" title="Switch theme" aria-label="Switch theme">
+        <svg class="icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.5" />
+            <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+        </svg>
+        <svg class="icon-moon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5 8.5 8.5 0 1 0 20.5 14.6z" />
+        </svg>
+    </button>
     <div id="hint" hidden>
         <span>Drag a sticker to turn its layer, or drag around the cube to look around. Use the ? button for all controls.</span>
         <button>Got it</button>
@@ -611,6 +710,7 @@
             <ul>
                 <li>Drag around the cube to orbit it. Scroll or pinch to zoom.</li>
                 <li>Double-click or double-tap to go back to the starting view.</li>
+                <li>The sun or moon button in the corner switches between the dark and light theme.</li>
             </ul>
 
             <h3>Buttons</h3>

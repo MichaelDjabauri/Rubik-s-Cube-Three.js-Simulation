@@ -8,18 +8,15 @@ export function readFacelets(rubiksCube) {
     const facelets = new Array(54).fill('?');
 
     for (const cubelet of rubiksCube.cubelets) {
-        cubelet.material.forEach((material, side) => {
-            // Side i of a cubelet starts out pointing along FACES[i].normal.
+        for (const sticker of cubelet.userData.stickers) {
+            // A sticker starts out pointing along its side's normal, FACES[side].normal.
             // Rotating that direction by the cubelet's current orientation shows where the sticker points now.
-            const direction = FACES[side].normal.clone().applyQuaternion(cubelet.quaternion).round();
-            if (cubelet.position.dot(direction) !== 1) {
-                return; // An inner side
-            }
-            const face = FACES.find(candidate => candidate.hex === `#${material.color.getHexString()}`);
+            const direction = FACES[sticker.userData.side].normal.clone().applyQuaternion(cubelet.quaternion).round();
+            const face = FACES.find(candidate => candidate.hex === `#${sticker.material.color.getHexString()}`);
             if (face) {
                 facelets[faceletIndex(cubelet.position.toArray(), direction.toArray())] = face.notation;
             }
-        });
+        }
     }
 
     return facelets.join('');

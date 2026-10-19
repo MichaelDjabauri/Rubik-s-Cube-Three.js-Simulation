@@ -50,7 +50,7 @@ class TurnAnimator {
             } else {
                 turn.elapsed += remaining;
                 remaining = 0;
-                this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle * easeInOut(turn.elapsed / turn.duration));
+                this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle * turn.easing(turn.elapsed / turn.duration));
             }
         }
     }
@@ -71,6 +71,9 @@ class TurnAnimator {
             // A clockwise quarter turn, seen from outside the face, is -90° around its outward normal
             angle: -turns * Math.PI / 2,
             duration,
+            // Turns at normal speed snap a little past the target and settle back, like a real cube.
+            // Faster turns, as in a scramble or a rewind, skip that so they flow into each other.
+            easing: duration >= QUARTER_TURN_DURATION_S ? easeWithSettle : easeInOut,
             elapsed: 0
         };
     }
@@ -107,8 +110,13 @@ function snapToGrid(cubelet) {
 }
 
 // Starts and ends slowly, moving fastest in the middle (t goes from 0 to 1)
-function easeInOut(t) {
+export function easeInOut(t) {
     return t * t * (3 - 2 * t);
+}
+
+// Starts slowly, goes about 5% past the end at t = 0.75, and settles back to exactly 1 with no jolt
+export function easeWithSettle(t) {
+    return t * t * (9 - 14 * t + 6 * t * t);
 }
 
 export default TurnAnimator;

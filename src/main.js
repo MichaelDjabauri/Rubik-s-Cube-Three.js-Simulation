@@ -5,7 +5,7 @@ import { createCameraGuide } from './scene/cameraGuide.js';
 import { createCelebration } from './scene/celebration.js';
 import { createIdleShowcase } from './scene/idleShowcase.js';
 import { createRenderer } from './scene/renderer.js';
-import { createLights } from './scene/lights.js';
+import { createLights, addEnvironment, createShadowFloor } from './scene/lights.js';
 import Cube from './cube/Cube.js';
 import { setUpKeyboard } from './input/keyboard.js';
 import { createCommandRunner } from './input/commands.js';
@@ -18,17 +18,19 @@ import { createEditor } from './ui/editor.js';
 import { createSolvedMessage } from './ui/solvedMessage.js';
 import { createHelp } from './ui/help.js';
 import { showFirstVisitHint } from './ui/firstVisitHint.js';
+import { setUpTheme } from './ui/theme.js';
 
 // This file sets everything up first and starts it at the very end, so nothing runs before it exists.
 // Where two parts need each other, a small arrow function like () => editor.open() looks the other
 // part up only when it's actually used.
 
-// Scene, camera, renderer and lights
+// Scene, camera, renderer and lights, plus a floor that catches the cube's shadow
 const scene = new THREE.Scene();
 const camera = createCamera();
 const renderer = createRenderer();
 const canvas = renderer.domElement;
-scene.add(...createLights());
+addEnvironment(scene, renderer);
+scene.add(...createLights(), createShadowFloor());
 
 // The cube: its logical state plus the 3D model that animates its turns
 const cube = new Cube();
@@ -161,6 +163,7 @@ function animate(timestamp) {
 }
 
 // Start
+setUpTheme();
 toolbar.update(cube);
 showFirstVisitHint();
 fitCubeOnScreen();

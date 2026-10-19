@@ -1,3 +1,5 @@
+import { browserStorage, readSetting, writeSetting } from './storage.js';
+
 const SEEN_KEY = 'rubiks-cube.hint-seen';
 
 // A one-time hint for new visitors (the #hint element in index.html). It goes away at the first press
@@ -8,7 +10,7 @@ const SEEN_KEY = 'rubiks-cube.hint-seen';
 // target: where to listen for the first press or key, normally the page.
 export function showFirstVisitHint({ storage = browserStorage(), target = document } = {}) {
     const hint = document.querySelector('#hint');
-    if (wasSeen(storage)) {
+    if (readSetting(storage, SEEN_KEY) === 'yes') {
         return;
     }
 
@@ -16,7 +18,7 @@ export function showFirstVisitHint({ storage = browserStorage(), target = docume
 
     function dismiss() {
         hint.hidden = true;
-        rememberSeen(storage);
+        writeSetting(storage, SEEN_KEY, 'yes'); // If storage doesn't work, the hint shows again next visit
         target.removeEventListener('pointerdown', dismiss);
         target.removeEventListener('keydown', dismiss);
     }
@@ -24,28 +26,4 @@ export function showFirstVisitHint({ storage = browserStorage(), target = docume
     target.addEventListener('pointerdown', dismiss);
     target.addEventListener('keydown', dismiss);
     hint.querySelector('button').addEventListener('click', dismiss);
-}
-
-function browserStorage() {
-    try {
-        return window.localStorage;
-    } catch {
-        return null; // The browser blocks storage for this page
-    }
-}
-
-function wasSeen(storage) {
-    try {
-        return storage?.getItem(SEEN_KEY) === 'yes';
-    } catch {
-        return false;
-    }
-}
-
-function rememberSeen(storage) {
-    try {
-        storage?.setItem(SEEN_KEY, 'yes');
-    } catch {
-        // Can't remember it; the hint will show again next visit, which is fine
-    }
 }

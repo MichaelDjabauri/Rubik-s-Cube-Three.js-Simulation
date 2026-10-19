@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import RubiksCube from '../../src/cube/RubiksCube.js';
-import TurnAnimator from '../../src/cube/TurnAnimator.js';
+import TurnAnimator, { easeInOut, easeWithSettle } from '../../src/cube/TurnAnimator.js';
 import { FACES } from '../../src/cube/faces.js';
 import { parseMoves, invertMoves } from '../../src/cube/notation.js';
 
@@ -189,5 +189,51 @@ describe('TurnAnimator', () => {
         invertMoves(scramble).forEach(move => animator.queueMove(move));
         finishAllTurns();
         expectSameAs(before);
+    });
+});
+
+describe('turn easing', () => {
+    const samples = Array.from({ length: 101 }, (_, i) => i / 100);
+
+    it('starts at 0 and ends exactly at 1', () => {
+        for (const easing of [easeInOut, easeWithSettle]) {
+            expect(easing(0)).toBe(0);
+            expect(easing(1)).toBe(1);
+        }
+    });
+
+    it('lets normal turns go a little past the target, then settle back', () => {
+        const peak = Math.max(...samples.map(easeWithSettle));
+        expect(peak).toBeGreaterThan(1.03);
+        expect(peak).toBeLessThan(1.08);
+        // Never swings backwards at the start
+        expect(samples.every(t => easeWithSettle(t) >= 0)).toBe(true);
+    });
+
+    it('never goes past the target with the plain easing', () => {
+        expect(samples.every(t => easeInOut(t) <= 1)).toBe(true);
+    });
+});
+
+describe('TurnAnimator overshoot', () => {
+    // How far the pivot has turned around the face's axis, in degrees
+    function pivotDegrees() {
+        return THREE.MathUtils.radToDeg(2 * Math.acos(Math.min(Math.abs(animator.pivot.quaternion.w), 1)));
+    }
+
+    it('turns a normal-speed quarter turn a few degrees past 90° before it lands', () => {
+        queue('F');
+        animator.update(0.75 * 0.2); // The moment of the biggest overshoot
+        expect(pivotDegrees()).toBeGreaterThan(93);
+        finishAllTurns();
+        expect(cubeletAt(1, 0, 1)).toBeDefined();
+    });
+
+    it('never turns a fast turn past 90°', () => {
+        animator.queueMove({ face: 'F', turns: 1 }, 0.08);
+        for (let elapsed = 0; elapsed < 0.075; elapsed += 0.005) {
+            animator.update(0.005);
+            expect(pivotDegrees()).toBeLessThanOrEqual(90 + 1e-9);
+        }
     });
 });

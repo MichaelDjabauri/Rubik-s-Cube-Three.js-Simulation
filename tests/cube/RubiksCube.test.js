@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { SOLVED } from '../../src/cube/CubeState.js';
 import { readFacelets } from '../helpers/readFacelets.js';
-import RubiksCube from '../../src/cube/RubiksCube.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import RubiksCube, { HIGHLIGHT_GLOW } from '../../src/cube/RubiksCube.js';
 import { FACES } from '../../src/cube/faces.js';
-
-const BLACK = '000000';
 
 describe('RubiksCube', () => {
     const cube = new RubiksCube();
@@ -18,37 +17,56 @@ describe('RubiksCube', () => {
         expect(positions.has('0,0,0')).toBe(false);
     });
 
-    it('has 9 stickers of each color', () => {
-        for (const [index, face] of FACES.entries()) {
-            const stickers = cube.cubelets.filter(cubelet => cubelet.material[index].color.getHexString() !== BLACK);
-            expect(stickers, face.color).toHaveLength(9);
+    it('has 54 stickers, 9 of each color', () => {
+        const stickers = cube.cubelets.flatMap(cubelet => cubelet.userData.stickers);
+        expect(stickers).toHaveLength(54);
+        for (const face of FACES) {
+            const colored = stickers.filter(sticker => `#${sticker.material.color.getHexString()}` === face.hex);
+            expect(colored, face.color).toHaveLength(9);
         }
     });
 
-    it('colors only the sides that face out of the cube, each with its own face color', () => {
+    it('puts a sticker in its face color on every side that faces out of the cube, and nowhere else', () => {
         for (const cubelet of cube.cubelets) {
-            FACES.forEach((face, index) => {
-                const isOutside = cubelet.position.dot(face.normal) === 1;
-                const expectedColor = isOutside ? face.hex.slice(1) : BLACK;
-                expect(cubelet.material[index].color.getHexString()).toBe(expectedColor);
-            });
+            const outerSides = FACES.flatMap((face, side) => (cubelet.position.dot(face.normal) === 1 ? [side] : []));
+            expect(cubelet.userData.stickers.map(sticker => sticker.userData.side)).toEqual(outerSides);
+
+            for (const sticker of cubelet.userData.stickers) {
+                const face = FACES[sticker.userData.side];
+                expect(`#${sticker.material.color.getHexString()}`).toBe(face.hex);
+                // It lies on the outside of the body, facing out
+                expect(sticker.position.dot(face.normal)).toBeCloseTo(0.475);
+                const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(sticker.quaternion);
+                expect(facing.dot(face.normal)).toBeCloseTo(1);
+            }
         }
     });
 
-    it('highlights only the cubelets on the chosen face, and removes the highlight again', () => {
-        const glowing = () => cube.cubelets.filter(cubelet => cubelet.material[0].emissive.getHex() !== 0);
+    it('builds every cubelet as a rounded black body that casts a shadow', () => {
+        for (const cubelet of cube.cubelets) {
+            expect(cubelet.geometry).toBeInstanceOf(RoundedBoxGeometry);
+            expect(cubelet.material.color.getHexString()).toBe('111111');
+            expect(cubelet.castShadow).toBe(true);
+        }
+    });
+
+    it('highlights the stickers on the chosen face, and removes the highlight again', () => {
+        const glowing = () => cube.cubelets.filter(cubelet => cubelet.userData.stickers[0].material.emissive.getHex() !== 0);
 
         cube.highlightFace('U');
         expect(glowing()).toHaveLength(9);
         expect(glowing().every(cubelet => cubelet.position.y === 1)).toBe(true);
+        // Every sticker on those cubelets glows, not only the one on the U face
+        const corner = cube.cubelets.find(cubelet => cubelet.position.equals(new THREE.Vector3(1, 1, 1)));
+        corner.userData.stickers.forEach(sticker => expect(sticker.material.emissive.getHex()).toBe(HIGHLIGHT_GLOW));
 
         cube.highlightFace(null);
         expect(glowing()).toHaveLength(0);
     });
 
-    it('gives every cubelet its own materials, so one can glow without the others', () => {
-        const materials = new Set(cube.cubelets.flatMap(cubelet => cubelet.material));
-        expect(materials.size).toBe(26 * 6);
+    it('gives every sticker its own material, so one can glow without the others', () => {
+        const materials = new Set(cube.cubelets.flatMap(cubelet => cubelet.userData.stickers.map(sticker => sticker.material)));
+        expect(materials.size).toBe(54);
     });
 
     it('shows any stickers with setStickers, grey where unpainted, with every cubelet back home', () => {
