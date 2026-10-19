@@ -1,0 +1,149 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import * as THREE from 'three';
+import RubiksCube from '../../src/cube/RubiksCube.js';
+import TurnAnimator from '../../src/cube/TurnAnimator.js';
+import { FACES } from '../../src/cube/faces.js';
+
+const FRAME_SECONDS = 1 / 60;
+
+let cube;
+let animator;
+
+beforeEach(() => {
+    cube = new RubiksCube();
+    animator = new TurnAnimator(cube);
+});
+
+// Plays every queued turn to the end, like the render loop would
+function finishAllTurns() {
+    while (animator.currentTurn || animator.turnQueue.length > 0) {
+        animator.update(FRAME_SECONDS);
+    }
+}
+
+function turn(color, direction) {
+    animator.rotateFace(color, direction);
+    finishAllTurns();
+}
+
+function cubeletAt(x, y, z) {
+    return cube.cubelets.find(cubelet => cubelet.position.equals(new THREE.Vector3(x, y, z)));
+}
+
+// Records where every cubelet is and how it is oriented
+function snapshot() {
+    return cube.cubelets.map(cubelet => ({
+        position: cubelet.position.clone(),
+        quaternion: cubelet.quaternion.clone()
+    }));
+}
+
+function expectSameAs(before) {
+    cube.cubelets.forEach((cubelet, index) => {
+        expect(cubelet.position.equals(before[index].position)).toBe(true);
+        // q and -q describe the same rotation, so compare with the absolute dot product
+        expect(Math.abs(cubelet.quaternion.dot(before[index].quaternion))).toBeCloseTo(1, 10);
+    });
+}
+
+// A small seeded random generator so the scramble is the same on every run
+function seededRandom(seed) {
+    return () => {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+    };
+}
+
+describe('TurnAnimator', () => {
+    it('turns white (front) clockwise as seen from the front', () => {
+        const topEdge = cubeletAt(0, 1, 1);
+        turn('white', 'clockwise');
+        expect(topEdge.position.toArray()).toEqual([1, 0, 1]);
+    });
+
+    it('turns red (top) clockwise as seen from above', () => {
+        const frontEdge = cubeletAt(0, 1, 1);
+        turn('red', 'clockwise');
+        expect(frontEdge.position.toArray()).toEqual([-1, 1, 0]);
+    });
+
+    it('turns counterclockwise the opposite way', () => {
+        const topEdge = cubeletAt(0, 1, 1);
+        turn('white', 'counterclockwise');
+        expect(topEdge.position.toArray()).toEqual([-1, 0, 1]);
+    });
+
+    for (const face of FACES) {
+        it(`moves only the 9 cubelets on the ${face.color} face`, () => {
+            const onFace = cubelet => cubelet.position.dot(face.normal) === 1;
+            const facePieces = cube.cubelets.filter(onFace);
+            const before = snapshot();
+
+            turn(face.color, 'clockwise');
+
+            expect(facePieces).toHaveLength(9);
+            facePieces.forEach(cubelet => expect(onFace(cubelet)).toBe(true));
+            cube.cubelets.forEach((cubelet, index) => {
+                if (!facePieces.includes(cubelet)) {
+                    expect(cubelet.position.equals(before[index].position)).toBe(true);
+                }
+            });
+        });
+
+        it(`returns to solved after four ${face.color} turns`, () => {
+            const before = snapshot();
+            for (let i = 0; i < 4; i++) {
+                turn(face.color, 'clockwise');
+            }
+            expectSameAs(before);
+        });
+    }
+
+    it('queues turns requested while another turn is animating', () => {
+        animator.rotateFace('white', 'clockwise');
+        animator.update(FRAME_SECONDS);
+        animator.rotateFace('red', 'clockwise');
+
+        expect(animator.currentTurn).not.toBeNull();
+        expect(animator.turnQueue).toHaveLength(1);
+
+        finishAllTurns();
+        expect(animator.turnQueue).toHaveLength(0);
+        expect(animator.pivot.children).toHaveLength(0);
+    });
+
+    it('finishes a turn exactly even after a very long frame', () => {
+        const topEdge = cubeletAt(0, 1, 1);
+        animator.rotateFace('white', 'clockwise');
+        animator.update(5);
+        expect(animator.currentTurn).toBeNull();
+        expect(topEdge.position.toArray()).toEqual([1, 0, 1]);
+    });
+
+    it('stays exactly on the grid after a long scramble, and undoing it returns to solved', () => {
+        const random = seededRandom(42);
+        const directions = ['clockwise', 'counterclockwise'];
+        const opposite = { clockwise: 'counterclockwise', counterclockwise: 'clockwise' };
+        const before = snapshot();
+
+        const scramble = Array.from({ length: 300 }, () => ({
+            color: FACES[Math.floor(random() * FACES.length)].color,
+            direction: directions[Math.floor(random() * 2)]
+        }));
+
+        // Queue the whole scramble at once and play it with uneven frame times
+        scramble.forEach(move => animator.rotateFace(move.color, move.direction));
+        while (animator.currentTurn || animator.turnQueue.length > 0) {
+            animator.update(random() * 0.05);
+        }
+
+        for (const cubelet of cube.cubelets) {
+            for (const coordinate of cubelet.position.toArray()) {
+                expect(Number.isInteger(coordinate)).toBe(true);
+            }
+        }
+
+        [...scramble].reverse().forEach(move => turn(move.color, opposite[move.direction]));
+        expectSameAs(before);
+    });
+});

@@ -22,7 +22,13 @@ Open the local URL printed by Vite (usually `http://localhost:5173/Rubik-s-Cube-
 | `npm run dev` | Development server with live reload |
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build locally, exactly as it will be published |
+| `npm test` | Run the tests once |
+| `npm run test:watch` | Rerun the tests every time a file changes |
 | `npm run deploy` | Build and publish to GitHub Pages |
+
+## Tests
+
+The tests use [Vitest](https://vitest.dev) and live next to the code they test, in files ending in `.test.js`. They run in Node without a browser, because the cube logic doesn't depend on the page. They check that the cube is built correctly (26 cubelets, 9 stickers of each color, each on an outward-facing side) and that face turns behave correctly: each turn moves the right pieces in the right direction, turns queue up while one is animating, and a long scramble followed by its reverse returns the cube to solved.
 
 ## Controls
 
@@ -50,7 +56,8 @@ src/
 ├── cube/
 │   ├── faces.js         # Face colors and the direction each face points
 │   ├── RubiksCube.js    # Builds the 26 colored cubelets as a THREE.Group
-│   └── TurnAnimator.js  # Queues and animates face turns
+│   ├── TurnAnimator.js  # Queues and animates face turns
+│   └── *.test.js        # Tests for the files above
 └── scene/
     ├── camera.js        # Perspective camera
     ├── lights.js        # Directional and ambient lights
