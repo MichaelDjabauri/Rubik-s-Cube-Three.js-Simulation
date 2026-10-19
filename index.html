@@ -4,12 +4,20 @@
 <head>
     <meta charset="utf-8">
     <title>Rubik's Cube Simulation</title>
-    <style>body{margin:0}canvas{display:block}</style>
-  <script type="module" crossorigin src="/Rubik-s-Cube-Three.js-Simulation/assets/index-BlMEtOfF.js"></script>
+    <style>body{margin:0}canvas{display:block}.toolbar{gap:12px;display:flex;position:fixed;bottom:32px;left:50%;transform:translate(-50%)}button{color:#111;cursor:pointer;background:#e8e8e8;border:none;border-radius:10px;padding:12px 28px;font:600 18px system-ui,sans-serif}button:hover:not(:disabled){background:#fff}button:disabled{opacity:.4;cursor:default}#move-buttons{flex-direction:column;gap:8px;display:flex;position:fixed;top:50%;right:24px;transform:translateY(-50%)}.move-row{border-left:6px solid var(--face-color);border-radius:3px;gap:6px;padding-left:10px;display:flex}.move-row button{width:56px;padding:8px 0;font-size:16px}#scramble-text{color:#e8e8e8;white-space:nowrap;font:500 18px ui-monospace,Menlo,monospace;position:fixed;top:24px;left:50%;transform:translate(-50%)}</style>
+  <script type="module" crossorigin src="/Rubik-s-Cube-Three.js-Simulation/assets/index-CYhEksTa.js"></script>
 </head>
 
 <body>
     <canvas id="c"></canvas>
+    <div id="scramble-text"></div>
+    <div id="move-buttons"></div>
+    <div class="toolbar">
+        <button id="scramble" title="Mix up the cube with 25 random moves">Scramble</button>
+        <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+        <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+        <button id="reset" title="Rewind every move back to solved">Reset</button>
+    </div>
 </body>
 
 </html>
