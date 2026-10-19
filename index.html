@@ -6,20 +6,63 @@
     <!-- Render at the phone's real width instead of as a zoomed-out desktop page, and use the whole screen around the notch -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Rubik's Cube Simulation</title>
-    <style>html,body{overscroll-behavior:none;-webkit-user-select:none;user-select:none;background:#000;height:100%;margin:0;overflow:hidden}canvas{display:block}.toolbar{gap:12px;display:flex;position:fixed;bottom:32px;left:50%;transform:translate(-50%)}button{color:#111;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;background:#e8e8e8;border:none;border-radius:10px;padding:12px 28px;font:600 18px system-ui,sans-serif}@media (hover:hover){button:hover:not(:disabled){background:#fff}}button:active:not(:disabled){background:#fff}button:disabled{opacity:.4;cursor:default}#move-buttons{flex-direction:column;gap:8px;display:flex;position:fixed;top:50%;right:24px;transform:translateY(-50%)}.move-row{border-left:6px solid var(--face-color);border-radius:3px;gap:6px;padding-left:10px;display:flex}.move-row button{width:56px;padding:8px 0;font-size:16px}#scramble-text{color:#e8e8e8;white-space:nowrap;font:500 18px ui-monospace,Menlo,monospace;position:fixed;top:24px;left:50%;transform:translate(-50%)}@media (width<=700px){.toolbar{left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));gap:8px;transform:none}.toolbar button{flex:1;min-height:44px;padding:0 4px;font-size:15px}#move-buttons{top:auto;left:16px;right:16px;bottom:calc(16px + 44px + 12px + env(safe-area-inset-bottom));flex-direction:row;gap:8px;transform:none}.move-row{border-left:none;border-top:6px solid var(--face-color);flex-direction:column;flex:1;padding:8px 0 0}.move-row button{width:100%;min-height:44px;padding:0}#scramble-text{top:calc(12px + env(safe-area-inset-top));white-space:normal;text-align:center;font-size:14px;left:16px;right:16px;transform:none}}@media (width<=360px){.toolbar button{font-size:13px}}@media (height<=500px) and (width>=701px){.toolbar{left:calc(16px + env(safe-area-inset-left));flex-direction:column;gap:8px;top:50%;bottom:auto;transform:translateY(-50%)}.toolbar button{min-height:44px;padding:0 16px;font-size:15px}#move-buttons{right:calc(16px + env(safe-area-inset-right));gap:4px}.move-row button{width:48px;min-height:44px;padding:0}#scramble-text{top:calc(8px + env(safe-area-inset-top));white-space:normal;text-align:center;width:60vw;font-size:14px}}</style>
-  <script type="module" crossorigin src="/Rubik-s-Cube-Three.js-Simulation/assets/index-DVVDq-JJ.js"></script>
+    <style>html,body{overscroll-behavior:none;-webkit-user-select:none;user-select:none;background:#000;height:100%;margin:0;overflow:hidden}canvas{display:block}[hidden]{display:none!important}.toolbar{gap:12px;display:flex;position:fixed;bottom:32px;left:50%;transform:translate(-50%)}button{color:#111;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;background:#e8e8e8;border:none;border-radius:10px;padding:12px 28px;font:600 18px system-ui,sans-serif}@media (hover:hover){button:hover:not(:disabled){background:#fff}}button:active:not(:disabled){background:#fff}button:disabled{opacity:.4;cursor:default}#move-buttons{flex-direction:column;gap:8px;display:flex;position:fixed;top:50%;right:24px;transform:translateY(-50%)}.move-row{border-left:6px solid var(--face-color);border-radius:3px;gap:6px;padding-left:10px;display:flex}.move-row button{width:56px;padding:8px 0;font-size:16px}#cube-info{color:#e8e8e8;white-space:nowrap;-webkit-user-select:text;user-select:text;font:500 18px ui-monospace,Menlo,monospace;position:fixed;top:24px;left:50%;transform:translate(-50%)}.label-short{display:none}#help-button{top:calc(16px + env(safe-area-inset-top));right:calc(16px + env(safe-area-inset-right));border-radius:50%;width:44px;height:44px;padding:0;font-size:22px;position:fixed}#help{background:#000000a6;justify-content:center;align-items:center;display:flex;position:fixed;inset:0}.help-panel{box-sizing:border-box;color:#e8e8e8;-webkit-user-select:text;user-select:text;background:#1d1d1f;border-radius:14px;width:min(560px,100% - 32px);max-height:calc(100% - 32px);padding:20px 24px 24px;font:400 16px/1.45 system-ui,sans-serif;overflow-y:auto}.help-panel h2{margin:0 0 8px;font-size:24px}.help-panel h3{margin:16px 0 4px;font-size:17px}.help-panel ul{margin:0;padding-left:20px}.help-panel p{margin:0}kbd{background:#3a3a3c;border-radius:5px;padding:1px 6px;font:600 14px ui-monospace,Menlo,monospace}.help-close{margin:20px auto 0;display:block}#hint{box-sizing:border-box;color:#e8e8e8;background:#1d1d1feb;border-radius:12px;align-items:center;gap:12px;width:max-content;max-width:calc(100% - 32px);padding:10px 10px 10px 16px;font:500 15px system-ui,sans-serif;display:flex;position:fixed;bottom:100px;left:50%;transform:translate(-50%)}#hint button{flex-shrink:0;padding:8px 14px;font-size:15px}#solved-message{color:#fff;text-shadow:0 2px 12px #000c;pointer-events:none;opacity:0;flex-direction:column;align-items:center;font:600 22px system-ui,sans-serif;display:flex;position:fixed;top:22%;left:50%;transform:translate(-50%,-50%)}#solved-message strong{font-size:64px;font-weight:800}#solved-message.show{animation:2.8s ease-out forwards solved-pop}@keyframes solved-pop{0%{opacity:0;transform:translate(-50%,-50%)scale(.4)}12%{opacity:1;transform:translate(-50%,-50%)scale(1.15)}20%{transform:translate(-50%,-50%)scale(1)}75%{opacity:1}to{opacity:0;transform:translate(-50%,-50%)scale(1)}}@media (prefers-reduced-motion:reduce){@keyframes solved-pop{0%{opacity:0}15%{opacity:1}75%{opacity:1}to{opacity:0}}}body.editing .toolbar,body.editing #move-buttons,body.editing #cube-info,body.editing #help-button,body.editing #hint{display:none}.editor-top,.editor-bottom{color:#e8e8e8;text-align:center;width:min(760px,100% - 32px);font:500 16px system-ui,sans-serif;position:fixed;left:50%;transform:translate(-50%)}.editor-top{top:calc(20px + env(safe-area-inset-top))}.editor-instruction{margin:0;font-size:18px;font-weight:600}.editor-bottom{bottom:calc(24px + env(safe-area-inset-bottom));flex-direction:column;align-items:center;gap:12px;display:flex}.editor-status{min-height:3.6em;max-height:3.6em;margin:0;line-height:1.2;overflow-y:auto}.editor-status.ok{color:#8ee59a}.editor-status.problem{color:#ffb4a8}.editor-steps,.editor-palette,.editor-actions{gap:8px;display:flex}.editor-steps button{padding:8px 14px;font-size:15px}.editor-steps button.current{outline-offset:2px;outline:3px solid #5aa9ff}.editor-steps button.complete{box-shadow:inset 0 -5px #3fbf5f}.editor-palette{gap:14px}.editor-palette .swatch{color:#e8e8e8;background:0 0;flex-direction:column;align-items:center;gap:6px;padding:0;font-size:14px;display:flex}@media (hover:hover){.editor-palette .swatch:hover:not(:disabled){background:0 0}}.editor-palette .swatch:active:not(:disabled){background:0 0}.swatch-color{background:var(--swatch);box-sizing:border-box;border:2px solid #ffffff4d;border-radius:10px;width:56px;height:56px;display:block}.swatch.selected .swatch-color{outline-offset:3px;outline:4px solid #fff}.swatch-count.over{color:#ff8a80}.editor-actions button.primary:not(:disabled){background:#8ee59a}@media (width<=700px){.toolbar{left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));gap:8px;transform:none}.toolbar button{flex:1;min-height:44px;padding:0 4px;font-size:13px}.label-long{display:none}.label-short{display:inline}#hint{bottom:calc(196px + env(safe-area-inset-bottom));font-size:14px}.editor-top,.editor-bottom{width:auto;left:16px;right:16px;transform:none}.editor-top{top:calc(12px + env(safe-area-inset-top))}#solved-message strong{font-size:48px}.editor-instruction{font-size:15px}.editor-bottom{bottom:calc(16px + env(safe-area-inset-bottom));gap:10px;font-size:14px}.editor-steps,.editor-palette,.editor-actions{width:100%}.editor-steps button,.editor-actions button{flex:1;min-height:44px;padding:0 2px;font-size:13px}.editor-palette{gap:8px}.editor-palette .swatch{flex:1}.swatch-color{width:100%;height:44px}#move-buttons{top:auto;left:16px;right:16px;bottom:calc(16px + 44px + 12px + env(safe-area-inset-bottom));flex-direction:row;gap:8px;transform:none}.move-row{border-left:none;border-top:6px solid var(--face-color);flex-direction:column;flex:1;padding:8px 0 0}.move-row button{width:100%;min-height:44px;padding:0}#cube-info{top:calc(12px + env(safe-area-inset-top));white-space:normal;text-align:center;font-size:14px;left:68px;right:68px;transform:none}}@media (width<=360px){.toolbar button,.editor-steps button,.editor-actions button{font-size:11px}}@media (height<=500px) and (width>=701px){#help-button{right:auto;left:calc(16px + env(safe-area-inset-left))}#hint{bottom:calc(12px + env(safe-area-inset-bottom))}.toolbar{left:calc(16px + env(safe-area-inset-left));flex-direction:column;gap:8px;top:50%;bottom:auto;transform:translateY(-50%)}.toolbar button{min-height:44px;padding:0 16px;font-size:15px}#move-buttons{right:calc(16px + env(safe-area-inset-right));gap:4px}.move-row button{width:48px;min-height:44px;padding:0}#cube-info{top:calc(8px + env(safe-area-inset-top));white-space:normal;text-align:center;width:60vw;font-size:14px}.editor-top{top:calc(8px + env(safe-area-inset-top))}.editor-instruction{font-size:14px}.editor-bottom{bottom:calc(8px + env(safe-area-inset-bottom));gap:6px;font-size:13px}.editor-status{min-height:2.4em;max-height:2.4em}.editor-steps button,.editor-actions button{min-height:36px;padding:0 10px;font-size:13px}.swatch-color{width:40px;height:40px}}</style>
+  <script type="module" crossorigin src="/Rubik-s-Cube-Three.js-Simulation/assets/index-Cx0pcUr8.js"></script>
 </head>
 
 <body>
     <canvas id="c"></canvas>
-    <div id="scramble-text"></div>
+    <div id="cube-info"></div>
+    <div id="solved-message" aria-live="polite"></div>
+    <button id="help-button" title="Help (?)" aria-label="Help">?</button>
+    <div id="hint" hidden>
+        <span>Drag a sticker to turn its layer, or drag around the cube to look around. Use the ? button for all controls.</span>
+        <button>Got it</button>
+    </div>
+    <div id="help" hidden>
+        <div class="help-panel" role="dialog" aria-modal="true" aria-labelledby="help-title">
+            <h2 id="help-title">How to play</h2>
+
+            <h3>Turning</h3>
+            <ul>
+                <li>Drag a sticker to turn its layer that way.</li>
+                <li>Or use the buttons on the right, or the keys <kbd>U</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>B</kbd> <kbd>R</kbd> <kbd>L</kbd> for the up, down, front, back, right and left faces. Hold <kbd>Shift</kbd> to turn counterclockwise.</li>
+            </ul>
+
+            <h3>Looking around</h3>
+            <ul>
+                <li>Drag around the cube to orbit it. Scroll or pinch to zoom.</li>
+                <li>Double-click or double-tap to go back to the starting view.</li>
+            </ul>
+
+            <h3>Buttons</h3>
+            <ul>
+                <li><b>Scramble</b> mixes up the cube. Solve it yourself for a little celebration.</li>
+                <li><b>Undo</b> (<kbd>Ctrl</kbd> <kbd>Z</kbd>) and <b>Redo</b> (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd>) step through your moves. On a Mac, <kbd>Cmd</kbd> works too.</li>
+                <li><b>Reset</b> rewinds every move back to the start.</li>
+                <li><b>Copy my cube</b> lets you paint your real cube's colors into the app.</li>
+            </ul>
+
+            <h3>Notation</h3>
+            <p>Faces are named by position: U up (red), D down (orange), F front (white), B back (yellow), R right (green) and L left (blue). A letter alone is a clockwise turn as seen looking at that face, <kbd>R'</kbd> is counterclockwise, and <kbd>R2</kbd> is a half turn.</p>
+
+            <button class="help-close">Close</button>
+        </div>
+    </div>
     <div id="move-buttons"></div>
     <div class="toolbar">
         <button id="scramble" title="Mix up the cube with 25 random moves">Scramble</button>
+        <button id="solved" title="Leave your copied cube and start again from a solved cube" hidden>
+            <span class="label-long">Solved cube</span><span class="label-short">Solved</span>
+        </button>
         <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
         <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
-        <button id="reset" title="Rewind every move back to solved">Reset</button>
+        <button id="reset" title="Rewind every move back to the solved cube">Reset</button>
+        <button id="edit" title="Paint your own cube's colors onto the 3D cube">
+            <span class="label-long">Copy my cube</span><span class="label-short">My cube</span>
+        </button>
     </div>
+    <div id="editor" hidden></div>
 </body>
 
 </html>
