@@ -8,21 +8,17 @@ const DRAG_THRESHOLD_PX = 10;
 // Dragging the background still orbits the camera, and two fingers pinch to zoom, even when
 // the first finger landed on the cube.
 //
+// picker: finds the sticker under the pointer (see picking.js).
 // onCommand receives { type: 'move', notation } when a drag turns a layer.
-export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand }) {
-    // An invisible box the size of the whole cube. Grabs are tested against it rather than the
-    // cubelets: it never moves, so grabbing works even mid-turn, and the hit point maps straight onto the grid.
-    const hitBox = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshBasicMaterial({ visible: false }));
-    cubeModel.add(hitBox);
-
-    const raycaster = new THREE.Raycaster();
+// isEnabled: turning is switched off while it returns false, e.g. while the cube editor is open.
+export function setUpMouseTurns({ camera, canvas, cubeModel, picker, controls, onCommand, isEnabled = () => true }) {
     let drag = null;         // The grab in progress, if any
     let replaying = false;   // True while passing a finger over to OrbitControls
 
     // This listener uses the capture phase so it runs before OrbitControls' own pointerdown listener
     canvas.addEventListener('pointerdown', (event) => {
-        if (replaying) {
-            return; // Our own replayed event, meant for OrbitControls
+        if (replaying || !isEnabled()) {
+            return; // Our own replayed event meant for OrbitControls, or turning is switched off
         }
 
         if (drag) {
@@ -34,8 +30,8 @@ export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand
             return;
         }
 
-        const hit = hitTest(event);
-        if (!hit) {
+        const sticker = picker.pick(event);
+        if (!sticker) {
             return; // Not on the cube: let OrbitControls orbit the camera
         }
 
@@ -43,13 +39,7 @@ export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand
         canvas.setPointerCapture(event.pointerId);
         canvas.style.cursor = 'grabbing';
 
-        const point = cubeModel.worldToLocal(hit.point.clone());
-        const normal = hit.face.normal.toArray();
-        // The grabbed sticker's grid cell: 1 or -1 along the face's normal, and the rounded hit point along the other axes
-        const cell = point.toArray().map((value, axis) =>
-            normal[axis] !== 0 ? normal[axis] : THREE.MathUtils.clamp(Math.round(value), -1, 1)
-        );
-
+        const { point, normal, cell } = sticker;
         drag = {
             pointerId: event.pointerId,
             pointerType: event.pointerType,
@@ -65,8 +55,8 @@ export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand
     canvas.addEventListener('pointermove', (event) => {
         if (!drag) {
             // Show a hand when a mouse hovers the cube, to hint that it can be grabbed
-            if (event.pointerType !== 'touch') {
-                canvas.style.cursor = hitTest(event) ? 'grab' : '';
+            if (event.pointerType !== 'touch' && isEnabled()) {
+                canvas.style.cursor = picker.pick(event) ? 'grab' : '';
             }
             return;
         }
@@ -122,17 +112,6 @@ export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand
             bubbles: true
         }));
         replaying = false;
-    }
-
-    // The point where the pointer's ray enters the cube, or null if it misses
-    function hitTest(event) {
-        const rect = canvas.getBoundingClientRect();
-        const pointer = new THREE.Vector2(
-            ((event.clientX - rect.left) / rect.width) * 2 - 1,
-            -((event.clientY - rect.top) / rect.height) * 2 + 1
-        );
-        raycaster.setFromCamera(pointer, camera);
-        return raycaster.intersectObject(hitBox)[0] ?? null;
     }
 
     // Which way a small step from `point` along `axis` (both in cube space) goes on screen, in pixels

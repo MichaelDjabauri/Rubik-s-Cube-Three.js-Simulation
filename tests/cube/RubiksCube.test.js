@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import * as THREE from 'three';
+import { SOLVED } from '../../src/cube/CubeState.js';
+import { readFacelets } from '../helpers/readFacelets.js';
 import RubiksCube from '../../src/cube/RubiksCube.js';
 import { FACES } from '../../src/cube/faces.js';
 
@@ -46,5 +49,38 @@ describe('RubiksCube', () => {
     it('gives every cubelet its own materials, so one can glow without the others', () => {
         const materials = new Set(cube.cubelets.flatMap(cubelet => cubelet.material));
         expect(materials.size).toBe(26 * 6);
+    });
+
+    it('shows any stickers with setStickers, grey where unpainted, with every cubelet back home', () => {
+        const model = new RubiksCube();
+        model.cubelets[0].position.set(1, 1, 1);
+        model.cubelets[0].rotateX(Math.PI / 2);
+
+        const facelets = [...SOLVED];
+        facelets[0] = 'F';
+        facelets[20] = 'U';
+        facelets[1] = null;
+        model.setStickers(facelets);
+
+        expect(readFacelets(model)).toBe(facelets.map(sticker => sticker ?? '?').join(''));
+        for (const cubelet of model.cubelets) {
+            expect(cubelet.position.equals(cubelet.userData.home)).toBe(true);
+            expect(cubelet.quaternion.equals(new THREE.Quaternion())).toBe(true);
+        }
+    });
+
+    it('highlights single stickers by index, and clears all highlights', () => {
+        const model = new RubiksCube();
+        model.highlightStickers([0, 8, 22]);
+        const glowing = [];
+        model.forEachSticker((material, index) => {
+            if (material.emissive.getHex() !== 0) {
+                glowing.push(index);
+            }
+        });
+        expect(glowing.sort((a, b) => a - b)).toEqual([0, 8, 22]);
+
+        model.clearHighlights();
+        model.forEachSticker(material => expect(material.emissive.getHex()).toBe(0));
     });
 });

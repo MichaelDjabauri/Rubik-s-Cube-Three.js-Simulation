@@ -113,6 +113,16 @@ describe('TurnAnimator', () => {
         });
     }
 
+    it('says whether it is busy, from the first queued turn until the last one lands', () => {
+        expect(animator.isBusy).toBe(false);
+        queue('F U');
+        expect(animator.isBusy).toBe(true);
+        animator.update(0.3);
+        expect(animator.isBusy).toBe(true);
+        finishAllTurns();
+        expect(animator.isBusy).toBe(false);
+    });
+
     it('queues turns requested while another turn is animating', () => {
         queue('F');
         animator.update(FRAME_SECONDS);

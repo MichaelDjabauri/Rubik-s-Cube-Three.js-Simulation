@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import { setUpMouseTurns } from '../../src/input/mouse.js';
+import { createStickerPicker } from '../../src/input/picking.js';
 import RubiksCube from '../../src/cube/RubiksCube.js';
 
 // These tests run mouse.js in Node, without a browser: the canvas is a plain EventTarget with the
@@ -29,6 +30,7 @@ let camera;
 let controls;
 let commands;
 let receivedByControls;
+let turningEnabled;
 
 beforeEach(() => {
     camera = new THREE.PerspectiveCamera(75, WIDTH / HEIGHT, 0.1, 1000);
@@ -44,9 +46,11 @@ beforeEach(() => {
     });
 
     controls = { enabled: true };
+    turningEnabled = true;
     commands = [];
     const model = new RubiksCube();
-    setUpMouseTurns({ camera, canvas, cubeModel: model, controls, onCommand: command => commands.push(command.notation) });
+    const picker = createStickerPicker({ camera, canvas, cubeModel: model });
+    setUpMouseTurns({ camera, canvas, cubeModel: model, picker, controls, onCommand: command => commands.push(command.notation), isEnabled: () => turningEnabled });
     model.updateMatrixWorld(true);
 
     // Stands in for OrbitControls' own pointerdown listener, which runs after ours
@@ -154,5 +158,75 @@ describe('mouse and touch turns', () => {
 
         pointer('pointerup', [0, 0], 1);
         expect(controls.enabled).toBe(true);
+    });
+
+    it('does nothing while turning is switched off, e.g. while the cube editor is open', () => {
+        turningEnabled = false;
+        pointer('pointerdown', screenOf(...FRONT_TOP_ROW));
+        pointer('pointermove', draggedFrom(FRONT_TOP_ROW, RIGHT));
+        expect(commands).toEqual([]);
+        expect(controls.enabled).toBe(true);
+    });
+
+    it('shows a grab hand when a mouse hovers the cube, and the normal cursor elsewhere', () => {
+        pointer('pointermove', screenOf(...FRONT_TOP_ROW), 1, 'mouse');
+        expect(canvas.style.cursor).toBe('grab');
+        pointer('pointermove', [5, 5], 1, 'mouse');
+        expect(canvas.style.cursor).toBe('');
+    });
+
+    it('shows a grabbing hand while dragging, and the normal cursor afterwards', () => {
+        pointer('pointerdown', screenOf(...FRONT_TOP_ROW), 1, 'mouse');
+        expect(canvas.style.cursor).toBe('grabbing');
+        pointer('pointerup', [0, 0], 1, 'mouse');
+        expect(canvas.style.cursor).toBe('');
+    });
+
+    it('leaves the cursor alone for touch, and while turning is switched off', () => {
+        pointer('pointermove', screenOf(...FRONT_TOP_ROW), 1, 'touch');
+        expect(canvas.style.cursor).toBeUndefined();
+
+        turningEnabled = false;
+        pointer('pointermove', screenOf(...FRONT_TOP_ROW), 1, 'mouse');
+        expect(canvas.style.cursor).toBeUndefined();
+    });
+
+    it('ignores moves from other fingers while one is grabbing', () => {
+        pointer('pointerdown', screenOf(...FRONT_TOP_ROW), 1);
+        pointer('pointermove', draggedFrom(FRONT_TOP_ROW, RIGHT), 2);
+        expect(commands).toEqual([]);
+
+        pointer('pointermove', draggedFrom(FRONT_TOP_ROW, RIGHT), 1);
+        expect(commands).toEqual(["U'"]);
+    });
+
+    it('makes only one move per drag, however far it goes', () => {
+        pointer('pointerdown', screenOf(...FRONT_TOP_ROW), 1);
+        pointer('pointermove', draggedFrom(FRONT_TOP_ROW, RIGHT), 1);
+        pointer('pointermove', [0, 0], 1);
+        expect(commands).toEqual(["U'"]);
+    });
+});
+
+describe('mouse turns with default settings', () => {
+    it('is switched on unless told otherwise', () => {
+        const otherCanvas = new EventTarget();
+        Object.assign(otherCanvas, {
+            style: {},
+            setPointerCapture() {},
+            getBoundingClientRect: () => ({ left: 0, top: 0, width: WIDTH, height: HEIGHT })
+        });
+        const model = new RubiksCube();
+        const picker = createStickerPicker({ camera, canvas: otherCanvas, cubeModel: model });
+        const moves = [];
+        setUpMouseTurns({ camera, canvas: otherCanvas, cubeModel: model, picker, controls, onCommand: command => moves.push(command.notation) });
+        model.updateMatrixWorld(true);
+
+        for (const [type, position] of [['pointerdown', screenOf(...FRONT_TOP_ROW)], ['pointermove', draggedFrom(FRONT_TOP_ROW, RIGHT)]]) {
+            const event = new Event(type);
+            Object.assign(event, { clientX: position[0], clientY: position[1], pointerId: 1, pointerType: 'mouse' });
+            otherCanvas.dispatchEvent(event);
+        }
+        expect(moves).toEqual(["U'"]);
     });
 });

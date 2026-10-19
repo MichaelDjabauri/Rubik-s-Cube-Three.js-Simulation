@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
@@ -16,7 +17,9 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.5",
     "gh-pages": "~6.1.1",
+    "happy-dom": "^20.14.6",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
   }

@@ -1,4 +1,4 @@
-import CubeState from './CubeState.js';
+import CubeState, { SOLVED } from './CubeState.js';
 import RubiksCube from './RubiksCube.js';
 import TurnAnimator from './TurnAnimator.js';
 import { parseMoves, invertMove, invertMoves } from './notation.js';
@@ -21,11 +21,20 @@ class Cube {
         this.history = [];   // Moves made since the last reset, oldest first
         this.redoStack = []; // Undone moves, most recently undone last
         this.lastScramble = null; // Notation of the latest scramble, until the next reset
+        // Whether the starting point is a cube copied in with the editor, rather than the solved cube
+        this.startsFromCopy = false;
+
+        // The solve the user is working on, after a scramble or loading an unsolved copy: { moveCount }
+        this.currentSolve = null;
+        // Called with the number of moves when the user's own moves solve a scrambled or copied cube
+        this.onSolved = () => {};
     }
 
     // Applies moves written in notation, e.g. "R" or "R U R' U2"
     move(notation) {
-        this.record(parseMoves(notation));
+        const moves = parseMoves(notation);
+        this.record(moves);
+        this.checkForSolve(moves.length);
     }
 
     // Mixes up the cube with a random sequence of moves, played quickly. Returns its notation.
@@ -34,6 +43,7 @@ class Cube {
         const scramble = generateScramble(SCRAMBLE_LENGTH, random);
         this.record(parseMoves(scramble), FAST_TURN_DURATION_S);
         this.lastScramble = scramble;
+        this.beginSolve();
         return scramble;
     }
 
@@ -59,7 +69,23 @@ class Cube {
         return move;
     }
 
-    // Rewinds every move back to solved, quickly enough to watch
+    // Replaces the cube with any arrangement of stickers, e.g. one copied from a real cube in the editor.
+    // facelets: 54 face letters in CubeState's layout. The new cube becomes the starting point,
+    // so the history starts empty and reset rewinds back to it.
+    loadState(facelets) {
+        this.startFrom(facelets);
+        this.startsFromCopy = true;
+        this.beginSolve();
+    }
+
+    // Leaves a copied cube and starts again from a solved one, straight away
+    resetToSolved() {
+        this.startFrom(SOLVED);
+        this.startsFromCopy = false;
+    }
+
+    // Rewinds every move back to the starting point: the solved cube, or a cube loaded with loadState.
+    // Quick enough to watch.
     reset() {
         const rewind = invertMoves(this.history);
         const turnDuration = Math.min(FAST_TURN_DURATION_S, REWIND_MAX_DURATION_S / rewind.length);
@@ -68,6 +94,8 @@ class Cube {
         this.history = [];
         this.redoStack = [];
         this.lastScramble = null;
+        // Back at a copied cube, the user can try solving it again
+        this.beginSolve();
     }
 
     get canUndo() {
@@ -81,6 +109,37 @@ class Cube {
     // Called every frame from the render loop with the seconds since the last frame
     update(deltaSeconds) {
         this.animator.update(deltaSeconds);
+    }
+
+    // Shows the given stickers right away, as the new starting point with an empty history
+    startFrom(facelets) {
+        this.animator.clear();
+        this.state = new CubeState(facelets);
+        this.model.setStickers(this.state.facelets);
+
+        this.history = [];
+        this.redoStack = [];
+        this.lastScramble = null;
+        this.currentSolve = null;
+    }
+
+    // Starts counting a new solve, unless the cube is already solved
+    beginSolve() {
+        this.currentSolve = this.state.isSolved() ? null : { moveCount: 0 };
+    }
+
+    // Counts the user's moves towards the current solve, and celebrates if they solved the cube.
+    // Only the user's own moves count: undo, redo and reset never set off a celebration.
+    checkForSolve(movesMade) {
+        if (!this.currentSolve) {
+            return;
+        }
+        this.currentSolve.moveCount += movesMade;
+        if (this.state.isSolved()) {
+            const { moveCount } = this.currentSolve;
+            this.currentSolve = null;
+            this.onSolved(moveCount);
+        }
     }
 
     // Performs new moves and adds them to the history.

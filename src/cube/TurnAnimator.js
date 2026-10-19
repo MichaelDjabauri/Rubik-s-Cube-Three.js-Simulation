@@ -22,6 +22,11 @@ class TurnAnimator {
         this.turnQueue.push({ ...move, duration });
     }
 
+    // Whether a turn is playing or waiting to play
+    get isBusy() {
+        return this.currentTurn !== null || this.turnQueue.length > 0;
+    }
+
     // Called every frame from the render loop with the seconds since the last frame.
     // If turns are shorter than a frame, as in a fast rewind, several of them play in one frame.
     update(deltaSeconds) {
@@ -68,6 +73,17 @@ class TurnAnimator {
             duration,
             elapsed: 0
         };
+    }
+
+    // Drops every queued turn and stops the current one where it is. The cubelets are left
+    // mid-turn, so call this right before putting them somewhere new, e.g. with RubiksCube.setStickers.
+    clear() {
+        if (this.currentTurn) {
+            this.currentTurn.cubelets.forEach(cubelet => this.rubiksCube.attach(cubelet));
+            this.pivot.rotation.set(0, 0, 0);
+            this.currentTurn = null;
+        }
+        this.turnQueue = [];
     }
 
     completeTurn() {

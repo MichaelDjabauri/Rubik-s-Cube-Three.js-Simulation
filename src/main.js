@@ -1,18 +1,33 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createCamera, fitCamera, CUBE_RADIUS } from './scene/camera.js';
+import { createCamera, fitCamera, CUBE_RADIUS, START_VIEW } from './scene/camera.js';
+import { createCameraGuide } from './scene/cameraGuide.js';
+import { createCelebration } from './scene/celebration.js';
+import { createIdleShowcase } from './scene/idleShowcase.js';
 import { createRenderer } from './scene/renderer.js';
 import { createLights } from './scene/lights.js';
 import Cube from './cube/Cube.js';
-import { commandForKey } from './input/keyboard.js';
+import { setUpKeyboard } from './input/keyboard.js';
+import { createCommandRunner } from './input/commands.js';
+import { createStickerPicker } from './input/picking.js';
 import { setUpMouseTurns } from './input/mouse.js';
+import { onDoubleTap } from './input/doubleTap.js';
 import { createToolbar } from './ui/toolbar.js';
 import { createMoveButtons } from './ui/moveButtons.js';
+import { createEditor } from './ui/editor.js';
+import { createSolvedMessage } from './ui/solvedMessage.js';
+import { createHelp } from './ui/help.js';
+import { showFirstVisitHint } from './ui/firstVisitHint.js';
+
+// This file sets everything up first and starts it at the very end, so nothing runs before it exists.
+// Where two parts need each other, a small arrow function like () => editor.open() looks the other
+// part up only when it's actually used.
 
 // Scene, camera, renderer and lights
 const scene = new THREE.Scene();
 const camera = createCamera();
 const renderer = createRenderer();
+const canvas = renderer.domElement;
 scene.add(...createLights());
 
 // The cube: its logical state plus the 3D model that animates its turns
@@ -20,57 +35,85 @@ const cube = new Cube();
 scene.add(cube.model);
 
 // Camera controls: drag the background to orbit, scroll to zoom
-const controls = new OrbitControls(camera, renderer.domElement);
+const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+const cameraGuide = createCameraGuide(camera, controls);
 
-// Commands come from the keyboard, the mouse and the buttons, e.g. { type: 'move', notation: "R'" } or { type: 'undo' }
-const toolbar = createToolbar(runCommand);
-toolbar.update(cube);
-createMoveButtons(runCommand, notation => cube.model.highlightFace(notation));
-setUpMouseTurns({ camera, canvas: renderer.domElement, cubeModel: cube.model, controls, onCommand: runCommand });
+// A little party when the user solves a scrambled or copied cube: the cube hops and spins,
+// confetti flies, and a "Solved!" message pops up with the number of moves.
+// People whose system asks for less motion only get the message.
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const celebration = createCelebration({
+    scene,
+    cubeModel: cube.model,
+    isCubeBusy: () => cube.animator.isBusy,
+    reduceMotion: () => reducedMotion.matches
+});
+const solvedMessage = createSolvedMessage();
+cube.onSolved = moveCount => celebration.play(() => solvedMessage.show(moveCount));
 
-function runCommand(command) {
-    if (command.type === 'move') {
-        cube.move(command.notation);
-    } else if (command.type === 'scramble') {
-        cube.scramble();
-    } else if (command.type === 'undo') {
-        cube.undo();
-    } else if (command.type === 'redo') {
-        cube.redo();
-    } else if (command.type === 'reset') {
-        cube.reset();
-    }
-    toolbar.update(cube);
-}
+// Finds the sticker under the pointer, for turning layers and for painting in the editor
+const picker = createStickerPicker({ camera, canvas, cubeModel: cube.model });
 
-// Keyboard: face letters in standard notation, Ctrl+Z to undo, Ctrl+Shift+Z to redo (see input/keyboard.js)
-document.addEventListener('keydown', (event) => {
-    const command = commandForKey(event);
-    if (!command) {
-        return;
-    }
-    // Stop the browser from running its own action for the key, like its own undo
-    event.preventDefault();
-    runCommand(command);
+// Every command, from the keyboard, the mouse or the buttons, runs here
+const runCommand = createCommandRunner({
+    cube,
+    openEditor: () => {
+        celebration.stop(); // No spinning cube while painting
+        editor.open();
+    },
+    openHelp: () => help.open(),
+    afterEach: () => toolbar.update(cube)
 });
 
-// Fit the whole cube on screen, now and whenever the window changes size (e.g. a phone is turned).
-// On upright phones the buttons cover the bottom of the screen (see the CSS in index.html),
-// so the cube is fitted into, and centered in, the space above them.
+// Buttons: the toolbar at the bottom and the face buttons on the right
+const toolbar = createToolbar(runCommand);
+createMoveButtons(runCommand, notation => cube.model.highlightFace(notation));
+
+// The "Copy my cube" editor
+const editor = createEditor({
+    cube,
+    picker,
+    canvas,
+    controls,
+    cameraGuide,
+    onLayoutChange: () => fitCubeOnScreen(),
+    onClose: () => toolbar.update(cube)
+});
+
+// The help overlay, opened with the ? button or the ? key
+const help = createHelp();
+
+// Keys, and dragging stickers to turn layers. Both are switched off while the editor or help is open.
+setUpKeyboard({ overlays: [editor, help], runCommand });
+setUpMouseTurns({ camera, canvas, cubeModel: cube.model, picker, controls, onCommand: runCommand, isEnabled: () => !editor.isOpen });
+
+// Double-click or double-tap to swing the camera back to its starting view (not while painting)
+onDoubleTap(canvas, () => {
+    if (!editor.isOpen) {
+        fitCubeOnScreen();
+        cameraGuide.flyTo(START_VIEW);
+    }
+});
+
+// After a while without input, the camera slowly circles the cube
+const idleShowcase = createIdleShowcase({
+    controls,
+    canRun: () => !editor.isOpen && !celebration.isPlaying && !reducedMotion.matches
+});
+
+// Fits the whole cube on screen, into the space the buttons and text leave free (see the CSS in index.html).
+// Runs at the start, when the window changes size (e.g. a phone is turned), and when the editor opens or closes.
 const uprightPhoneLayout = window.matchMedia('(max-width: 700px)');
 
 function fitCubeOnScreen() {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    const freeHeight = uprightPhoneLayout.matches
-        ? document.querySelector('#move-buttons').getBoundingClientRect().top
-        : height;
-    const { distance, offsetY } = fitCamera({ fovDegrees: camera.fov, width, height, freeHeight });
+    const { distance, offsetY } = fitCamera({ fovDegrees: camera.fov, width, height, ...freeSpace() });
 
     camera.aspect = width / height;
-    if (offsetY > 0) {
+    if (offsetY !== 0) {
         camera.setViewOffset(width, height, 0, offsetY, width, height);
     } else {
         camera.clearViewOffset();
@@ -86,8 +129,19 @@ function fitCubeOnScreen() {
     renderer.setSize(width, height);
 }
 
-fitCubeOnScreen();
-window.addEventListener('resize', fitCubeOnScreen);
+// The part of the screen, from the top, that the cube can use: { freeTop, freeBottom } in pixels
+function freeSpace() {
+    if (editor.isOpen) {
+        return {
+            freeTop: document.querySelector('.editor-top').getBoundingClientRect().bottom,
+            freeBottom: document.querySelector('.editor-bottom').getBoundingClientRect().top
+        };
+    }
+    if (uprightPhoneLayout.matches) {
+        return { freeBottom: document.querySelector('#move-buttons').getBoundingClientRect().top };
+    }
+    return {};
+}
 
 // Render loop: runs once per screen refresh
 const timer = new THREE.Timer();
@@ -96,9 +150,19 @@ timer.connect(document);
 
 function animate(timestamp) {
     timer.update(timestamp);
-    cube.update(timer.getDelta());
-    controls.update();
+    // Never let time run backwards, even if the browser's clock hiccups
+    const deltaSeconds = Math.max(timer.getDelta(), 0);
+    cube.update(deltaSeconds);
+    idleShowcase.update(deltaSeconds);
+    controls.update(deltaSeconds);
+    cameraGuide.update(deltaSeconds); // After controls.update(), so a guided camera move wins
+    celebration.update(deltaSeconds);
     renderer.render(scene, camera);
 }
 
+// Start
+toolbar.update(cube);
+showFirstVisitHint();
+fitCubeOnScreen();
+window.addEventListener('resize', fitCubeOnScreen);
 renderer.setAnimationLoop(animate);

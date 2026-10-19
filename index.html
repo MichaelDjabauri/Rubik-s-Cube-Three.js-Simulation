@@ -23,6 +23,11 @@
             display: block;
         }
 
+        /* Anything marked hidden stays hidden, even if another rule sets how it's displayed */
+        [hidden] {
+            display: none !important;
+        }
+
         .toolbar {
             position: fixed;
             bottom: 32px;
@@ -87,8 +92,8 @@
             padding: 8px 0;
         }
 
-        /* The latest scramble, at the top of the screen */
-        #scramble-text {
+        /* A line of info at the top of the screen: the latest scramble, or that a copied cube is loaded */
+        #cube-info {
             position: fixed;
             top: 24px;
             left: 50%;
@@ -96,6 +101,275 @@
             color: #e8e8e8;
             font: 500 18px ui-monospace, Menlo, monospace;
             white-space: nowrap;
+            /* The rest of the page can't be selected, but this can, e.g. to copy a scramble */
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .label-short {
+            display: none;
+        }
+
+        /* The round ? button in the top-right corner */
+        #help-button {
+            position: fixed;
+            top: calc(16px + env(safe-area-inset-top));
+            right: calc(16px + env(safe-area-inset-right));
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 22px;
+        }
+
+        /* The help overlay: a dimmed background with a scrollable panel in the middle */
+        #help {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.65);
+        }
+
+        .help-panel {
+            width: min(560px, calc(100% - 32px));
+            max-height: calc(100% - 32px);
+            overflow-y: auto;
+            box-sizing: border-box;
+            padding: 20px 24px 24px;
+            border-radius: 14px;
+            background: #1d1d1f;
+            color: #e8e8e8;
+            font: 400 16px/1.45 system-ui, sans-serif;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .help-panel h2 {
+            margin: 0 0 8px;
+            font-size: 24px;
+        }
+
+        .help-panel h3 {
+            margin: 16px 0 4px;
+            font-size: 17px;
+        }
+
+        .help-panel ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .help-panel p {
+            margin: 0;
+        }
+
+        kbd {
+            padding: 1px 6px;
+            border-radius: 5px;
+            background: #3a3a3c;
+            font: 600 14px ui-monospace, Menlo, monospace;
+        }
+
+        .help-close {
+            display: block;
+            margin: 20px auto 0;
+        }
+
+        /* The one-time hint for new visitors, just above the toolbar */
+        #hint {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: max-content;
+            max-width: calc(100% - 32px);
+            box-sizing: border-box;
+            padding: 10px 10px 10px 16px;
+            border-radius: 12px;
+            background: rgba(29, 29, 31, 0.92);
+            color: #e8e8e8;
+            font: 500 15px system-ui, sans-serif;
+        }
+
+        #hint button {
+            flex-shrink: 0;
+            padding: 8px 14px;
+            font-size: 15px;
+        }
+
+        /* "Solved!" pops up in the middle of the screen, stays a moment, and fades away */
+        #solved-message {
+            position: fixed;
+            top: 22%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #ffffff;
+            font: 600 22px system-ui, sans-serif;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        #solved-message strong {
+            font-size: 64px;
+            font-weight: 800;
+        }
+
+        #solved-message.show {
+            animation: solved-pop 2.8s ease-out forwards;
+        }
+
+        @keyframes solved-pop {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+            12% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+            20% { transform: translate(-50%, -50%) scale(1); }
+            75% { opacity: 1; }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* For people who ask their system for less motion: just fade in and out, no popping */
+        @media (prefers-reduced-motion: reduce) {
+            @keyframes solved-pop {
+                0% { opacity: 0; }
+                15% { opacity: 1; }
+                75% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+        }
+
+        /* While the cube editor is open, the normal controls make way for it */
+        body.editing .toolbar,
+        body.editing #move-buttons,
+        body.editing #cube-info,
+        body.editing #help-button,
+        body.editing #hint {
+            display: none;
+        }
+
+        /* The "Copy my cube" editor: instructions at the top; status, face tabs, palette and actions at the bottom */
+        .editor-top,
+        .editor-bottom {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(760px, calc(100% - 32px));
+            color: #e8e8e8;
+            font: 500 16px system-ui, sans-serif;
+            text-align: center;
+        }
+
+        .editor-top {
+            top: calc(20px + env(safe-area-inset-top));
+        }
+
+        .editor-instruction {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .editor-bottom {
+            bottom: calc(24px + env(safe-area-inset-bottom));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Room for about 3 lines, so the layout doesn't jump as the message changes */
+        .editor-status {
+            margin: 0;
+            min-height: 3.6em;
+            max-height: 3.6em;
+            overflow-y: auto;
+            line-height: 1.2;
+        }
+
+        .editor-status.ok {
+            color: #8ee59a;
+        }
+
+        .editor-status.problem {
+            color: #ffb4a8;
+        }
+
+        .editor-steps,
+        .editor-palette,
+        .editor-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .editor-steps button {
+            font-size: 15px;
+            padding: 8px 14px;
+        }
+
+        .editor-steps button.current {
+            outline: 3px solid #5aa9ff;
+            outline-offset: 2px;
+        }
+
+        /* A green bar along the bottom of the tab once all of that face's stickers are painted */
+        .editor-steps button.complete {
+            box-shadow: inset 0 -5px 0 #3fbf5f;
+        }
+
+        .editor-palette {
+            gap: 14px;
+        }
+
+        /* A color swatch with its count underneath, e.g. 7/9 */
+        .editor-palette .swatch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 0;
+            background: transparent;
+            color: #e8e8e8;
+            font-size: 14px;
+        }
+
+        @media (hover: hover) {
+            .editor-palette .swatch:hover:not(:disabled) {
+                background: transparent;
+            }
+        }
+
+        .editor-palette .swatch:active:not(:disabled) {
+            background: transparent;
+        }
+
+        .swatch-color {
+            display: block;
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            background: var(--swatch);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-sizing: border-box;
+        }
+
+        .swatch.selected .swatch-color {
+            outline: 4px solid #ffffff;
+            outline-offset: 3px;
+        }
+
+        .swatch-count.over {
+            color: #ff8a80;
+        }
+
+        .editor-actions button.primary:not(:disabled) {
+            background: #8ee59a;
         }
 
         /*
@@ -118,7 +392,74 @@
                 flex: 1;
                 min-height: 44px;
                 padding: 0 4px;
+                font-size: 13px;
+            }
+
+            .label-long {
+                display: none;
+            }
+
+            .label-short {
+                display: inline;
+            }
+
+            /* Just above the face buttons */
+            #hint {
+                bottom: calc(196px + env(safe-area-inset-bottom));
+                font-size: 14px;
+            }
+
+            .editor-top,
+            .editor-bottom {
+                left: 16px;
+                right: 16px;
+                width: auto;
+                transform: none;
+            }
+
+            .editor-top {
+                top: calc(12px + env(safe-area-inset-top));
+            }
+
+            #solved-message strong {
+                font-size: 48px;
+            }
+
+            .editor-instruction {
                 font-size: 15px;
+            }
+
+            .editor-bottom {
+                bottom: calc(16px + env(safe-area-inset-bottom));
+                gap: 10px;
+                font-size: 14px;
+            }
+
+            .editor-steps,
+            .editor-palette,
+            .editor-actions {
+                width: 100%;
+            }
+
+            .editor-steps button,
+            .editor-actions button {
+                flex: 1;
+                min-height: 44px;
+                padding: 0 2px;
+                font-size: 13px;
+            }
+
+            .editor-palette {
+                gap: 8px;
+            }
+
+            .editor-palette .swatch {
+                flex: 1;
+            }
+
+            .swatch-color {
+                width: 100%;
+                height: 44px;
             }
 
             #move-buttons {
@@ -145,10 +486,11 @@
                 padding: 0;
             }
 
-            #scramble-text {
+            #cube-info {
                 top: calc(12px + env(safe-area-inset-top));
-                left: 16px;
-                right: 16px;
+                /* Room on both sides for the ? button, keeping the text centered */
+                left: 68px;
+                right: 68px;
                 transform: none;
                 white-space: normal;
                 text-align: center;
@@ -158,13 +500,25 @@
 
         /* The smallest phones (about 320px wide): smaller toolbar text so "Scramble" still fits */
         @media (max-width: 360px) {
-            .toolbar button {
-                font-size: 13px;
+            .toolbar button,
+            .editor-steps button,
+            .editor-actions button {
+                font-size: 11px;
             }
         }
 
         /* Phones held sideways (short screens): toolbar in a column on the left, compact face buttons on the right */
         @media (max-height: 500px) and (min-width: 701px) {
+            /* The face buttons fill the right side, so the ? button moves to the top-left corner */
+            #help-button {
+                right: auto;
+                left: calc(16px + env(safe-area-inset-left));
+            }
+
+            #hint {
+                bottom: calc(12px + env(safe-area-inset-bottom));
+            }
+
             .toolbar {
                 left: calc(16px + env(safe-area-inset-left));
                 top: 50%;
@@ -191,12 +545,44 @@
                 padding: 0;
             }
 
-            #scramble-text {
+            #cube-info {
                 top: calc(8px + env(safe-area-inset-top));
                 width: 60vw;
                 white-space: normal;
                 text-align: center;
                 font-size: 14px;
+            }
+
+            /* The editor squeezed onto a short screen */
+            .editor-top {
+                top: calc(8px + env(safe-area-inset-top));
+            }
+
+            .editor-instruction {
+                font-size: 14px;
+            }
+
+            .editor-bottom {
+                bottom: calc(8px + env(safe-area-inset-bottom));
+                gap: 6px;
+                font-size: 13px;
+            }
+
+            .editor-status {
+                min-height: 2.4em;
+                max-height: 2.4em;
+            }
+
+            .editor-steps button,
+            .editor-actions button {
+                min-height: 36px;
+                padding: 0 10px;
+                font-size: 13px;
+            }
+
+            .swatch-color {
+                width: 40px;
+                height: 40px;
             }
         }
     </style>
@@ -204,14 +590,57 @@
 
 <body>
     <canvas id="c"></canvas>
-    <div id="scramble-text"></div>
+    <div id="cube-info"></div>
+    <div id="solved-message" aria-live="polite"></div>
+    <button id="help-button" title="Help (?)" aria-label="Help">?</button>
+    <div id="hint" hidden>
+        <span>Drag a sticker to turn its layer, or drag around the cube to look around. Use the ? button for all controls.</span>
+        <button>Got it</button>
+    </div>
+    <div id="help" hidden>
+        <div class="help-panel" role="dialog" aria-modal="true" aria-labelledby="help-title">
+            <h2 id="help-title">How to play</h2>
+
+            <h3>Turning</h3>
+            <ul>
+                <li>Drag a sticker to turn its layer that way.</li>
+                <li>Or use the buttons on the right, or the keys <kbd>U</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>B</kbd> <kbd>R</kbd> <kbd>L</kbd> for the up, down, front, back, right and left faces. Hold <kbd>Shift</kbd> to turn counterclockwise.</li>
+            </ul>
+
+            <h3>Looking around</h3>
+            <ul>
+                <li>Drag around the cube to orbit it. Scroll or pinch to zoom.</li>
+                <li>Double-click or double-tap to go back to the starting view.</li>
+            </ul>
+
+            <h3>Buttons</h3>
+            <ul>
+                <li><b>Scramble</b> mixes up the cube. Solve it yourself for a little celebration.</li>
+                <li><b>Undo</b> (<kbd>Ctrl</kbd> <kbd>Z</kbd>) and <b>Redo</b> (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd>) step through your moves. On a Mac, <kbd>Cmd</kbd> works too.</li>
+                <li><b>Reset</b> rewinds every move back to the start.</li>
+                <li><b>Copy my cube</b> lets you paint your real cube's colors into the app.</li>
+            </ul>
+
+            <h3>Notation</h3>
+            <p>Faces are named by position: U up (red), D down (orange), F front (white), B back (yellow), R right (green) and L left (blue). A letter alone is a clockwise turn as seen looking at that face, <kbd>R'</kbd> is counterclockwise, and <kbd>R2</kbd> is a half turn.</p>
+
+            <button class="help-close">Close</button>
+        </div>
+    </div>
     <div id="move-buttons"></div>
     <div class="toolbar">
         <button id="scramble" title="Mix up the cube with 25 random moves">Scramble</button>
+        <button id="solved" title="Leave your copied cube and start again from a solved cube" hidden>
+            <span class="label-long">Solved cube</span><span class="label-short">Solved</span>
+        </button>
         <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
         <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
-        <button id="reset" title="Rewind every move back to solved">Reset</button>
+        <button id="reset" title="Rewind every move back to the solved cube">Reset</button>
+        <button id="edit" title="Paint your own cube's colors onto the 3D cube">
+            <span class="label-long">Copy my cube</span><span class="label-short">My cube</span>
+        </button>
     </div>
+    <div id="editor" hidden></div>
     <script type="module" src="./src/main.js"></script>
 </body>
 

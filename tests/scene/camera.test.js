@@ -4,9 +4,9 @@ import { fitCamera, CUBE_RADIUS, DEFAULT_DISTANCE } from '../../src/scene/camera
 const FOV = 75;
 
 // Whether a ball of the cube's radius fits in the free space when seen from `distance`
-function cubeFits({ width, height, freeHeight = height }, distance) {
+function cubeFits({ width, height, freeTop = 0, freeBottom = height }, distance) {
     const tanHalfVertical = Math.tan((FOV * Math.PI / 180) / 2);
-    const halfVertical = Math.atan(tanHalfVertical * freeHeight / height);
+    const halfVertical = Math.atan(tanHalfVertical * (freeBottom - freeTop) / height);
     const halfHorizontal = Math.atan(tanHalfVertical * width / height);
     return distance * Math.sin(Math.min(halfVertical, halfHorizontal)) >= CUBE_RADIUS;
 }
@@ -29,10 +29,18 @@ describe('fitCamera', () => {
     });
 
     it('fits the cube into the space above the buttons and centers it there', () => {
-        const screen = { width: 390, height: 844, freeHeight: 680 };
+        const screen = { width: 390, height: 844, freeBottom: 680 };
         const { distance, offsetY } = fitCamera({ fovDegrees: FOV, ...screen });
         expect(cubeFits(screen, distance)).toBe(true);
         expect(offsetY).toBe((844 - 680) / 2);
+    });
+
+    it('fits the cube between text at the top and buttons at the bottom, and centers it there', () => {
+        const screen = { width: 1440, height: 900, freeTop: 300, freeBottom: 900 };
+        const { distance, offsetY } = fitCamera({ fovDegrees: FOV, ...screen });
+        expect(cubeFits(screen, distance)).toBe(true);
+        // The free space is centered 150px below the middle of the screen, so the cube moves down by that much
+        expect(offsetY).toBe(450 - 600);
     });
 
     it('never needs more distance on a wider screen', () => {
@@ -41,6 +49,14 @@ describe('fitCamera', () => {
             const { distance } = fitCamera({ fovDegrees: FOV, width, height: 844 });
             expect(distance).toBeLessThanOrEqual(previous);
             previous = distance;
+        }
+    });
+
+    it('still gives a sensible distance when buttons and text overlap on a tiny screen', () => {
+        for (const free of [{ freeTop: 300, freeBottom: 300 }, { freeTop: 400, freeBottom: 200 }]) {
+            const { distance } = fitCamera({ fovDegrees: FOV, width: 320, height: 480, ...free });
+            expect(Number.isFinite(distance)).toBe(true);
+            expect(distance).toBeGreaterThan(DEFAULT_DISTANCE);
         }
     });
 });

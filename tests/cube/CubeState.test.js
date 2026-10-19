@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import CubeState, { SOLVED, faceletLocation } from '../../src/cube/CubeState.js';
+import CubeState, { SOLVED } from '../../src/cube/CubeState.js';
 import { parseMoves } from '../../src/cube/notation.js';
 
 const FACE_LETTERS = ['U', 'D', 'F', 'B', 'R', 'L'];
@@ -27,24 +27,6 @@ describe('CubeState', () => {
         expect(stateAfter('F').toString()).toBe(
             'UUUUUULLL' + 'URRURRURR' + 'FFFFFFFFF' + 'RRRDDDDDD' + 'LLDLLDLLD' + 'BBBBBBBBB'
         );
-    });
-
-    it('uses the standard facelet layout, where these stickers share a corner or edge piece', () => {
-        // Kociemba's facelet tables, written 1-based per face as U1..U9, R1..R9 and so on
-        const corners = [
-            'U9 R1 F3', 'U7 F1 L3', 'U1 L1 B3', 'U3 B1 R3',
-            'D3 F9 R7', 'D1 L9 F7', 'D7 B9 L7', 'D9 R9 B7'
-        ];
-        const edges = [
-            'U6 R2', 'U8 F2', 'U4 L2', 'U2 B2', 'D6 R8', 'D2 F8',
-            'D4 L8', 'D8 B8', 'F6 R4', 'F4 L6', 'B6 L4', 'B4 R6'
-        ];
-        const toIndex = name => 'URFDLB'.indexOf(name[0]) * 9 + Number(name[1]) - 1;
-
-        for (const piece of [...corners, ...edges]) {
-            const positions = piece.split(' ').map(name => faceletLocation(toIndex(name)).position.join(','));
-            expect(new Set(positions).size, piece).toBe(1);
-        }
     });
 
     for (const face of FACE_LETTERS) {

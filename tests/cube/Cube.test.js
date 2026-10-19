@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import Cube from '../../src/cube/Cube.js';
 import CubeState, { SOLVED } from '../../src/cube/CubeState.js';
-import { parseMoves, formatMoves } from '../../src/cube/notation.js';
+import { parseMoves, formatMoves, invertMoves } from '../../src/cube/notation.js';
 import { readFacelets } from '../helpers/readFacelets.js';
 
 const FRAME_SECONDS = 1 / 60;
@@ -246,5 +246,188 @@ describe('Cube scramble', () => {
         expect(cube.lastScramble).toBeNull();
         finishAnimations(cube);
         expect(readFacelets(cube.model)).toBe(SOLVED);
+    });
+});
+
+describe('Cube loadState (a copied cube)', () => {
+    const copied = () => new CubeState().applyMoves(parseMoves("R U2 F' L D B2 R' U")).toString();
+
+    it('shows the loaded cube and starts a fresh history', () => {
+        const cube = new Cube();
+        cube.scramble(seededRandom(1));
+        cube.update(0.1); // Part-way through the scramble animation
+        cube.loadState(copied());
+
+        expect(cube.state.toString()).toBe(copied());
+        expect(readFacelets(cube.model)).toBe(copied());
+        expect(cube.history).toEqual([]);
+        expect(cube.canRedo).toBe(false);
+        expect(cube.lastScramble).toBeNull();
+        expect(cube.animator.turnQueue).toHaveLength(0);
+        expect(cube.animator.pivot.children).toHaveLength(0);
+    });
+
+    it('keeps the state and the 3D model in sync for moves after loading', () => {
+        const cube = new Cube();
+        cube.loadState(copied());
+        cube.move("F R' D2 L U'");
+        finishAnimations(cube);
+        expect(readFacelets(cube.model)).toBe(cube.state.toString());
+    });
+
+    it('resets back to the loaded cube, not to solved', () => {
+        const cube = new Cube();
+        cube.loadState(copied());
+        cube.move('R U');
+        cube.reset();
+        finishAnimations(cube);
+        expect(cube.state.toString()).toBe(copied());
+        expect(readFacelets(cube.model)).toBe(copied());
+    });
+
+    it('remembers that it starts from a copied cube', () => {
+        const cube = new Cube();
+        expect(cube.startsFromCopy).toBe(false);
+        cube.loadState(copied());
+        expect(cube.startsFromCopy).toBe(true);
+    });
+});
+
+describe('Cube resetToSolved (leaving a copied cube)', () => {
+    const copied = () => new CubeState().applyMoves(parseMoves("R U2 F' L D B2 R' U")).toString();
+
+    it('goes straight to a solved cube, as a normal starting point again', () => {
+        const cube = new Cube();
+        cube.loadState(copied());
+        cube.move('R U');
+        cube.undo();
+        cube.resetToSolved();
+
+        expect(cube.state.isSolved()).toBe(true);
+        expect(readFacelets(cube.model)).toBe(SOLVED);
+        expect(cube.startsFromCopy).toBe(false);
+        expect(cube.canUndo).toBe(false);
+        expect(cube.canRedo).toBe(false);
+    });
+
+    it('stops any turn that is still animating', () => {
+        const cube = new Cube();
+        cube.loadState(copied());
+        cube.move("R U F'");
+        cube.update(0.05);
+        cube.resetToSolved();
+
+        expect(cube.animator.currentTurn).toBeNull();
+        expect(cube.animator.turnQueue).toHaveLength(0);
+        expect(readFacelets(cube.model)).toBe(SOLVED);
+    });
+
+    it('afterwards, reset rewinds to solved again', () => {
+        const cube = new Cube();
+        cube.loadState(copied());
+        cube.resetToSolved();
+        cube.move("R U'");
+        cube.reset();
+        finishAnimations(cube);
+        expect(readFacelets(cube.model)).toBe(SOLVED);
+    });
+});
+
+describe('Cube onSolved (celebrating the user solving the cube)', () => {
+    // Watches for celebrations, and returns the move count of each one
+    function watch(cube) {
+        const solves = [];
+        cube.onSolved = moveCount => solves.push(moveCount);
+        return solves;
+    }
+
+    // The moves that undo a scramble, written as notation
+    function undoing(scramble) {
+        return formatMoves(invertMoves(parseMoves(scramble)));
+    }
+
+    it('celebrates when the user solves a scramble, with the number of moves they made', () => {
+        const cube = new Cube();
+        const solves = watch(cube);
+        const scramble = cube.scramble(seededRandom(5));
+
+        cube.move('R');
+        cube.move("R'");
+        cube.move(undoing(scramble));
+
+        expect(solves).toEqual([2 + 25]);
+    });
+
+    it('celebrates when the user solves a copied cube', () => {
+        const cube = new Cube();
+        const solves = watch(cube);
+        cube.loadState(new CubeState().applyMoves(parseMoves("R U'")).toString());
+        cube.move('U');
+        cube.move("R'");
+        expect(solves).toEqual([2]);
+    });
+
+    it('celebrates only once per solve', () => {
+        const cube = new Cube();
+        const solves = watch(cube);
+        cube.move(undoing(cube.scramble(seededRandom(5))));
+        cube.move('R');
+        cube.move("R'");
+        expect(solves).toHaveLength(1);
+    });
+
+    it('solves fine when nobody is listening for celebrations', () => {
+        const cube = new Cube();
+        cube.move(undoing(cube.scramble(seededRandom(5))));
+        expect(cube.state.isSolved()).toBe(true);
+        expect(cube.currentSolve).toBeNull();
+    });
+
+    it("doesn't celebrate turning a solved cube and turning it back", () => {
+        const cube = new Cube();
+        const solves = watch(cube);
+        cube.move("R R'");
+        expect(solves).toEqual([]);
+    });
+
+    it("doesn't celebrate when undo, redo or reset return to solved", () => {
+        const cube = new Cube();
+        const solves = watch(cube);
+        cube.scramble(seededRandom(5));
+        cube.reset();
+        expect(solves).toEqual([]);
+
+        cube.move('R');
+        cube.undo();
+        cube.redo();
+        cube.undo();
+        expect(solves).toEqual([]);
+    });
+
+    it("doesn't celebrate after leaving a copied cube with Solved cube", () => {
+        const cube = new Cube();
+        const solves = watch(cube);
+        cube.loadState(new CubeState().applyMoves(parseMoves('R')).toString());
+        cube.resetToSolved();
+        cube.move("R R'");
+        expect(solves).toEqual([]);
+    });
+
+    it("doesn't celebrate loading a copied cube that is already solved", () => {
+        const cube = new Cube();
+        const solves = watch(cube);
+        cube.loadState(SOLVED);
+        cube.move("R R'");
+        expect(solves).toEqual([]);
+    });
+
+    it('lets the user solve a copied cube again after reset rewinds to it', () => {
+        const cube = new Cube();
+        const solves = watch(cube);
+        cube.loadState(new CubeState().applyMoves(parseMoves('R')).toString());
+        cube.move("R'");
+        cube.reset();
+        cube.move("R'");
+        expect(solves).toEqual([1, 1]);
     });
 });
