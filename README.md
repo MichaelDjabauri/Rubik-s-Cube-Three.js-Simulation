@@ -28,13 +28,26 @@ Open the local URL printed by Vite (usually `http://localhost:5173/Rubik-s-Cube-
 
 ## Tests
 
-The tests use [Vitest](https://vitest.dev) and live in `tests/`, which mirrors the folder structure of `src/`. For example, `src/cube/RubiksCube.js` is tested by `tests/cube/RubiksCube.test.js`. They run in Node without a browser, because the cube logic doesn't depend on the page. They check that the cube is built correctly (26 cubelets, 9 stickers of each color, each on an outward-facing side) and that face turns behave correctly: each turn moves the right pieces in the right direction, turns queue up while one is animating, and a long scramble followed by its reverse returns the cube to solved.
+The tests use [Vitest](https://vitest.dev) and live in `tests/`, which mirrors the folder structure of `src/`. For example, `src/cube/RubiksCube.js` is tested by `tests/cube/RubiksCube.test.js`. They run in Node without a browser, because the cube logic doesn't depend on the page. They cover reading and writing notation, the logical cube state (including known facts such as `R U` taking exactly 105 repeats to return to solved), building the 3D cube, animating turns, and a check that the 3D model and the logical state always end up showing the same stickers.
 
 ## Controls
 
-- Press `W`, `Y`, `G`, `B`, `R`, or `O` to turn the white, yellow, green, blue, red, or orange face clockwise.
-- Hold `Shift` while pressing a face key to turn it counterclockwise.
+The keyboard uses standard Rubik's Cube notation, where faces are named by their position rather than their color.
+
+| Key | Face | Color |
+|---|---|---|
+| `U` | Up | red |
+| `D` | Down | orange |
+| `F` | Front | white |
+| `B` | Back | yellow |
+| `R` | Right | green |
+| `L` | Left | blue |
+
+- Press a face's key to turn it clockwise, as seen looking straight at that face.
+- Hold `Shift` while pressing the key to turn it counterclockwise.
 - Drag with the mouse to orbit the camera; scroll to zoom.
+
+In written notation, a letter alone is a clockwise quarter turn, `'` (prime) makes it counterclockwise, and `2` makes it a half turn. For example, `R U R' U2` means: right clockwise, up clockwise, right counterclockwise, up half turn.
 
 ## Planned features
 
@@ -52,22 +65,29 @@ Everything, including the solvers, will run in the browser.
 index.html               # Canvas and application entry point
 vite.config.js           # GitHub Pages base path
 src/
-├── main.js              # Wires everything together: scene, input, render loop
+├── main.js              # Wires everything together: scene, keyboard, render loop
 ├── cube/
-│   ├── faces.js         # Face colors and the direction each face points
-│   ├── RubiksCube.js    # Builds the 26 colored cubelets as a THREE.Group
-│   └── TurnAnimator.js  # Queues and animates face turns
+│   ├── Cube.js          # The cube the app talks to: logical state plus 3D model
+│   ├── CubeState.js     # Logical state: the 54 stickers, and how each move changes them
+│   ├── notation.js      # Reads and writes move notation like "R U R' U2"
+│   ├── faces.js         # Each face's notation letter, color and direction
+│   ├── RubiksCube.js    # 3D model: the 26 colored cubelets as a THREE.Group
+│   └── TurnAnimator.js  # Queues and animates face turns on the 3D model
 └── scene/
     ├── camera.js        # Perspective camera
     ├── lights.js        # Directional and ambient lights
     └── renderer.js      # WebGL renderer attached to the canvas
 tests/                   # Mirrors src/, one test file per source file
-└── cube/
-    ├── RubiksCube.test.js
-    └── TurnAnimator.test.js
+├── cube/
+│   ├── Cube.test.js
+│   ├── CubeState.test.js
+│   ├── notation.test.js
+│   ├── RubiksCube.test.js
+│   └── TurnAnimator.test.js
+└── helpers/             # Shared test code, e.g. reading stickers off the 3D model
 ```
 
-The cube is a group of 26 cubelets on a 3×3×3 grid centered on the origin. To turn a face, `TurnAnimator` attaches that face's nine cubelets to a temporary pivot, rotates the pivot over a few frames, then snaps the cubelets back onto the grid. Turns requested mid-animation wait in a queue.
+The cube has two sides that always agree. `CubeState` is the logical cube: it stores the color of all 54 stickers in the standard facelet format used by Kociemba solvers, and it is the source of truth. `RubiksCube` is the 3D model: 26 cubelets on a 3×3×3 grid centered on the origin. A move like `R` updates `CubeState` immediately, then `TurnAnimator` animates the 3D model to match by attaching that face's nine cubelets to a temporary pivot, rotating the pivot over a few frames, and snapping the cubelets back onto the grid. Moves requested mid-animation wait in a queue.
 
 ## Deployment
 

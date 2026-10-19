@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import RubiksCube from '../../src/cube/RubiksCube.js';
 import TurnAnimator from '../../src/cube/TurnAnimator.js';
 import { FACES } from '../../src/cube/faces.js';
+import { parseMoves, invertMoves } from '../../src/cube/notation.js';
 
 const FRAME_SECONDS = 1 / 60;
 
@@ -21,8 +22,12 @@ function finishAllTurns() {
     }
 }
 
-function turn(color, direction) {
-    animator.rotateFace(color, direction);
+function queue(notation) {
+    parseMoves(notation).forEach(move => animator.queueMove(move));
+}
+
+function turn(notation) {
+    queue(notation);
     finishAllTurns();
 }
 
@@ -55,31 +60,42 @@ function seededRandom(seed) {
 }
 
 describe('TurnAnimator', () => {
-    it('turns white (front) clockwise as seen from the front', () => {
+    it('turns F (front) clockwise as seen from the front', () => {
         const topEdge = cubeletAt(0, 1, 1);
-        turn('white', 'clockwise');
+        turn('F');
         expect(topEdge.position.toArray()).toEqual([1, 0, 1]);
     });
 
-    it('turns red (top) clockwise as seen from above', () => {
+    it('turns U (up) clockwise as seen from above', () => {
         const frontEdge = cubeletAt(0, 1, 1);
-        turn('red', 'clockwise');
+        turn('U');
         expect(frontEdge.position.toArray()).toEqual([-1, 1, 0]);
     });
 
-    it('turns counterclockwise the opposite way', () => {
+    it("turns F' the opposite way", () => {
         const topEdge = cubeletAt(0, 1, 1);
-        turn('white', 'counterclockwise');
+        turn("F'");
         expect(topEdge.position.toArray()).toEqual([-1, 0, 1]);
     });
 
+    it('turns F2 halfway around as a single, longer turn', () => {
+        const topEdge = cubeletAt(0, 1, 1);
+        queue('F2');
+        animator.update(0.21); // Longer than a quarter turn takes
+        expect(animator.currentTurn).not.toBeNull();
+        expect(animator.turnQueue).toHaveLength(0);
+
+        finishAllTurns();
+        expect(topEdge.position.toArray()).toEqual([0, -1, 1]);
+    });
+
     for (const face of FACES) {
-        it(`moves only the 9 cubelets on the ${face.color} face`, () => {
+        it(`moves only the 9 cubelets on the ${face.notation} face`, () => {
             const onFace = cubelet => cubelet.position.dot(face.normal) === 1;
             const facePieces = cube.cubelets.filter(onFace);
             const before = snapshot();
 
-            turn(face.color, 'clockwise');
+            turn(face.notation);
 
             expect(facePieces).toHaveLength(9);
             facePieces.forEach(cubelet => expect(onFace(cubelet)).toBe(true));
@@ -90,19 +106,17 @@ describe('TurnAnimator', () => {
             });
         });
 
-        it(`returns to solved after four ${face.color} turns`, () => {
+        it(`returns to solved after four ${face.notation} turns`, () => {
             const before = snapshot();
-            for (let i = 0; i < 4; i++) {
-                turn(face.color, 'clockwise');
-            }
+            turn(`${face.notation} ${face.notation} ${face.notation} ${face.notation}`);
             expectSameAs(before);
         });
     }
 
     it('queues turns requested while another turn is animating', () => {
-        animator.rotateFace('white', 'clockwise');
+        queue('F');
         animator.update(FRAME_SECONDS);
-        animator.rotateFace('red', 'clockwise');
+        queue('U');
 
         expect(animator.currentTurn).not.toBeNull();
         expect(animator.turnQueue).toHaveLength(1);
@@ -114,7 +128,7 @@ describe('TurnAnimator', () => {
 
     it('finishes a turn exactly even after a very long frame', () => {
         const topEdge = cubeletAt(0, 1, 1);
-        animator.rotateFace('white', 'clockwise');
+        queue('F');
         animator.update(5);
         expect(animator.currentTurn).toBeNull();
         expect(topEdge.position.toArray()).toEqual([1, 0, 1]);
@@ -122,17 +136,15 @@ describe('TurnAnimator', () => {
 
     it('stays exactly on the grid after a long scramble, and undoing it returns to solved', () => {
         const random = seededRandom(42);
-        const directions = ['clockwise', 'counterclockwise'];
-        const opposite = { clockwise: 'counterclockwise', counterclockwise: 'clockwise' };
+        const suffixes = ['', "'", '2'];
         const before = snapshot();
 
-        const scramble = Array.from({ length: 300 }, () => ({
-            color: FACES[Math.floor(random() * FACES.length)].color,
-            direction: directions[Math.floor(random() * 2)]
-        }));
+        const scramble = parseMoves(Array.from({ length: 300 }, () =>
+            FACES[Math.floor(random() * FACES.length)].notation + suffixes[Math.floor(random() * 3)]
+        ).join(' '));
 
         // Queue the whole scramble at once and play it with uneven frame times
-        scramble.forEach(move => animator.rotateFace(move.color, move.direction));
+        scramble.forEach(move => animator.queueMove(move));
         while (animator.currentTurn || animator.turnQueue.length > 0) {
             animator.update(random() * 0.05);
         }
@@ -143,7 +155,8 @@ describe('TurnAnimator', () => {
             }
         }
 
-        [...scramble].reverse().forEach(move => turn(move.color, opposite[move.direction]));
+        invertMoves(scramble).forEach(move => animator.queueMove(move));
+        finishAllTurns();
         expectSameAs(before);
     });
 });

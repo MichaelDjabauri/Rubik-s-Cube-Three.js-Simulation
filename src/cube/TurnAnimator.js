@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { FACES } from './faces.js';
 
-const TURN_DURATION_S = 0.2;
+const QUARTER_TURN_DURATION_S = 0.2;
+const HALF_TURN_DURATION_S = 0.3;
 
-// Animates face turns one at a time. Turns requested during an animation wait in a queue.
+// Animates face turns on the 3D cube one at a time. Turns requested during an animation wait in a queue.
 class TurnAnimator {
     constructor(rubiksCube) {
         this.rubiksCube = rubiksCube;
@@ -15,10 +16,9 @@ class TurnAnimator {
         this.rubiksCube.add(this.pivot);
     }
 
-    // color: the face's center color, e.g. 'white'
-    // direction: 'clockwise' or 'counterclockwise', as seen when looking straight at that face
-    rotateFace(color, direction) {
-        this.turnQueue.push({ color, direction });
+    // move: a parsed move like { face: 'R', turns: 1 } (see notation.js)
+    queueMove(move) {
+        this.turnQueue.push(move);
     }
 
     // Called every frame from the render loop with the seconds since the last frame
@@ -31,8 +31,8 @@ class TurnAnimator {
         }
 
         const turn = this.currentTurn;
-        turn.elapsed = Math.min(turn.elapsed + deltaSeconds, TURN_DURATION_S);
-        const progress = turn.elapsed / TURN_DURATION_S;
+        turn.elapsed = Math.min(turn.elapsed + deltaSeconds, turn.duration);
+        const progress = turn.elapsed / turn.duration;
         this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle * easeInOut(progress));
 
         if (progress === 1) {
@@ -40,8 +40,8 @@ class TurnAnimator {
         }
     }
 
-    startTurn({ color, direction }) {
-        const { normal } = FACES.find(face => face.color === color);
+    startTurn({ face, turns }) {
+        const { normal } = FACES.find(candidate => candidate.notation === face);
 
         // Cubelets on a face sit 1 unit out along that face's normal
         const cubelets = this.rubiksCube.cubelets.filter(cubelet => cubelet.position.dot(normal) > 0.5);
@@ -53,8 +53,9 @@ class TurnAnimator {
         this.currentTurn = {
             cubelets,
             axis: normal,
-            // Clockwise, seen from outside the face, is a negative rotation around its outward normal
-            angle: direction === 'clockwise' ? -Math.PI / 2 : Math.PI / 2,
+            // A clockwise quarter turn, seen from outside the face, is -90° around its outward normal
+            angle: -turns * Math.PI / 2,
+            duration: turns === 2 ? HALF_TURN_DURATION_S : QUARTER_TURN_DURATION_S,
             elapsed: 0
         };
     }
