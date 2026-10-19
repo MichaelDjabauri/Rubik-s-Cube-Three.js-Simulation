@@ -3,10 +3,20 @@
 
 <head>
     <meta charset="utf-8">
+    <!-- Render at the phone's real width instead of as a zoomed-out desktop page, and use the whole screen around the notch -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Rubik's Cube Simulation</title>
     <style>
+        /* The page itself never scrolls, bounces or gets text-selected; all interaction is with the cube and buttons */
+        html,
         body {
+            height: 100%;
             margin: 0;
+            overflow: hidden;
+            overscroll-behavior: none;
+            background: #000000;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         canvas {
@@ -31,9 +41,19 @@
             border: none;
             border-radius: 10px;
             cursor: pointer;
+            /* Quick taps on a phone press the button instead of zooming the page */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        button:hover:not(:disabled) {
+        /* Only on devices that can hover; on touch screens a hover style would stay stuck after a tap */
+        @media (hover: hover) {
+            button:hover:not(:disabled) {
+                background: #ffffff;
+            }
+        }
+
+        button:active:not(:disabled) {
             background: #ffffff;
         }
 
@@ -76,6 +96,108 @@
             color: #e8e8e8;
             font: 500 18px ui-monospace, Menlo, monospace;
             white-space: nowrap;
+        }
+
+        /*
+         * Upright phones: everything sits at the bottom, under the cube.
+         *   face buttons: 2 rows of 6, with each face's color as a stripe on top
+         *   toolbar:      4 equal-width buttons
+         * main.js measures where the face buttons start and centers the cube in the space above.
+         * Every button is at least 44px tall, the recommended size for tapping.
+         */
+        @media (max-width: 700px) {
+            .toolbar {
+                left: 16px;
+                right: 16px;
+                bottom: calc(16px + env(safe-area-inset-bottom));
+                transform: none;
+                gap: 8px;
+            }
+
+            .toolbar button {
+                flex: 1;
+                min-height: 44px;
+                padding: 0 4px;
+                font-size: 15px;
+            }
+
+            #move-buttons {
+                left: 16px;
+                right: 16px;
+                top: auto;
+                bottom: calc(16px + 44px + 12px + env(safe-area-inset-bottom));
+                transform: none;
+                flex-direction: row;
+                gap: 8px;
+            }
+
+            .move-row {
+                flex: 1;
+                flex-direction: column;
+                padding: 8px 0 0;
+                border-left: none;
+                border-top: 6px solid var(--face-color);
+            }
+
+            .move-row button {
+                width: 100%;
+                min-height: 44px;
+                padding: 0;
+            }
+
+            #scramble-text {
+                top: calc(12px + env(safe-area-inset-top));
+                left: 16px;
+                right: 16px;
+                transform: none;
+                white-space: normal;
+                text-align: center;
+                font-size: 14px;
+            }
+        }
+
+        /* The smallest phones (about 320px wide): smaller toolbar text so "Scramble" still fits */
+        @media (max-width: 360px) {
+            .toolbar button {
+                font-size: 13px;
+            }
+        }
+
+        /* Phones held sideways (short screens): toolbar in a column on the left, compact face buttons on the right */
+        @media (max-height: 500px) and (min-width: 701px) {
+            .toolbar {
+                left: calc(16px + env(safe-area-inset-left));
+                top: 50%;
+                bottom: auto;
+                transform: translateY(-50%);
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .toolbar button {
+                min-height: 44px;
+                padding: 0 16px;
+                font-size: 15px;
+            }
+
+            #move-buttons {
+                right: calc(16px + env(safe-area-inset-right));
+                gap: 4px;
+            }
+
+            .move-row button {
+                width: 48px;
+                min-height: 44px;
+                padding: 0;
+            }
+
+            #scramble-text {
+                top: calc(8px + env(safe-area-inset-top));
+                width: 60vw;
+                white-space: normal;
+                text-align: center;
+                font-size: 14px;
+            }
         }
     </style>
 </head>

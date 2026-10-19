@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createCamera } from './scene/camera.js';
+import { createCamera, fitCamera, CUBE_RADIUS } from './scene/camera.js';
 import { createRenderer } from './scene/renderer.js';
 import { createLights } from './scene/lights.js';
 import Cube from './cube/Cube.js';
@@ -56,12 +56,38 @@ document.addEventListener('keydown', (event) => {
     runCommand(command);
 });
 
-// Keep the view undistorted when the window is resized
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+// Fit the whole cube on screen, now and whenever the window changes size (e.g. a phone is turned).
+// On upright phones the buttons cover the bottom of the screen (see the CSS in index.html),
+// so the cube is fitted into, and centered in, the space above them.
+const uprightPhoneLayout = window.matchMedia('(max-width: 700px)');
+
+function fitCubeOnScreen() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const freeHeight = uprightPhoneLayout.matches
+        ? document.querySelector('#move-buttons').getBoundingClientRect().top
+        : height;
+    const { distance, offsetY } = fitCamera({ fovDegrees: camera.fov, width, height, freeHeight });
+
+    camera.aspect = width / height;
+    if (offsetY > 0) {
+        camera.setViewOffset(width, height, 0, offsetY, width, height);
+    } else {
+        camera.clearViewOffset();
+    }
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
+
+    // Keep the current viewing angle, only change the distance
+    camera.position.sub(controls.target).setLength(distance).add(controls.target);
+    // Zoom limits: not inside the cube, and not so far away that it gets lost
+    controls.minDistance = CUBE_RADIUS + 1;
+    controls.maxDistance = distance * 2.5;
+
+    renderer.setSize(width, height);
+}
+
+fitCubeOnScreen();
+window.addEventListener('resize', fitCubeOnScreen);
 
 // Render loop: runs once per screen refresh
 const timer = new THREE.Timer();

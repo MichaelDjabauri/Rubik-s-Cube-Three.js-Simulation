@@ -4,8 +4,9 @@ import { inPlaneAxes, closestAxis, moveForDrag } from './drag.js';
 // How far the pointer has to move before a drag counts as a turn
 const DRAG_THRESHOLD_PX = 10;
 
-// Lets the user grab a sticker and drag it to turn its layer. Dragging anywhere else still orbits the camera.
-// Works with a mouse, and with touch through Pointer Events.
+// Lets the user grab a sticker and drag it to turn its layer, with a mouse or a finger.
+// Dragging the background still orbits the camera, and two fingers pinch to zoom, even when
+// the first finger landed on the cube.
 //
 // onCommand receives { type: 'move', notation } when a drag turns a layer.
 export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand }) {
@@ -15,10 +16,24 @@ export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand
     cubeModel.add(hitBox);
 
     const raycaster = new THREE.Raycaster();
-    let drag = null;
+    let drag = null;         // The grab in progress, if any
+    let replaying = false;   // True while passing a finger over to OrbitControls
 
     // This listener uses the capture phase so it runs before OrbitControls' own pointerdown listener
     canvas.addEventListener('pointerdown', (event) => {
+        if (replaying) {
+            return; // Our own replayed event, meant for OrbitControls
+        }
+
+        if (drag) {
+            // Another finger landed while one is holding the cube. Before any turn, that means the
+            // user wants to pinch, so hand the gesture to the camera. After a turn, ignore it.
+            if (!drag.turned) {
+                handOverToCamera();
+            }
+            return;
+        }
+
         const hit = hitTest(event);
         if (!hit) {
             return; // Not on the cube: let OrbitControls orbit the camera
@@ -35,17 +50,28 @@ export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand
             normal[axis] !== 0 ? normal[axis] : THREE.MathUtils.clamp(Math.round(value), -1, 1)
         );
 
-        drag = { startX: event.clientX, startY: event.clientY, point, normal, cell, turned: false };
+        drag = {
+            pointerId: event.pointerId,
+            pointerType: event.pointerType,
+            startX: event.clientX,
+            startY: event.clientY,
+            point,
+            normal,
+            cell,
+            turned: false
+        };
     }, { capture: true });
 
     canvas.addEventListener('pointermove', (event) => {
         if (!drag) {
-            // Show a hand when hovering the cube, to hint that it can be grabbed
-            canvas.style.cursor = hitTest(event) ? 'grab' : '';
+            // Show a hand when a mouse hovers the cube, to hint that it can be grabbed
+            if (event.pointerType !== 'touch') {
+                canvas.style.cursor = hitTest(event) ? 'grab' : '';
+            }
             return;
         }
-        if (drag.turned) {
-            return; // One drag makes one move
+        if (event.pointerId !== drag.pointerId || drag.turned) {
+            return; // Only the grabbing finger counts, and one drag makes one move
         }
 
         const dragPixels = [event.clientX - drag.startX, event.clientY - drag.startY];
@@ -66,8 +92,8 @@ export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand
         }
     });
 
-    function endDrag() {
-        if (drag) {
+    function endDrag(event) {
+        if (drag && event.pointerId === drag.pointerId) {
             drag = null;
             controls.enabled = true;
             canvas.style.cursor = '';
@@ -75,6 +101,28 @@ export function setUpMouseTurns({ camera, canvas, cubeModel, controls, onCommand
     }
     canvas.addEventListener('pointerup', endDrag);
     canvas.addEventListener('pointercancel', endDrag);
+
+    // OrbitControls never saw the first finger go down, because we took it. Give it a copy of that
+    // pointerdown now, so when the second finger's real pointerdown reaches it, it sees two fingers and pinches.
+    function handOverToCamera() {
+        const firstFinger = drag;
+        drag = null;
+        controls.enabled = true;
+        canvas.style.cursor = '';
+
+        replaying = true;
+        canvas.dispatchEvent(new PointerEvent('pointerdown', {
+            pointerId: firstFinger.pointerId,
+            pointerType: firstFinger.pointerType,
+            clientX: firstFinger.startX,
+            clientY: firstFinger.startY,
+            isPrimary: true,
+            button: 0,
+            buttons: 1,
+            bubbles: true
+        }));
+        replaying = false;
+    }
 
     // The point where the pointer's ray enters the cube, or null if it misses
     function hitTest(event) {

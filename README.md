@@ -20,6 +20,7 @@ Open the local URL printed by Vite (usually `http://localhost:5173/Rubik-s-Cube-
 | Command | What it does |
 |---|---|
 | `npm run dev` | Development server with live reload |
+| `npm run dev:phone` | Same, but also reachable from a phone on the same Wi-Fi: open the Network address it prints |
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build locally, exactly as it will be published |
 | `npm test` | Run the tests once |
@@ -48,6 +49,7 @@ The keyboard uses standard Rubik's Cube notation, where faces are named by their
 - Or press a face's key to turn it clockwise, as seen looking straight at that face.
 - Hold `Shift` while pressing the key to turn it counterclockwise.
 - Press `Ctrl+Z` to undo the last move and `Ctrl+Shift+Z` to redo it. On a Mac, `Cmd` works too. Hold the keys to keep going.
+- On a phone or tablet: drag a sticker with one finger to turn its layer, drag the background to orbit, and pinch with two fingers to zoom. The face buttons sit under the cube when the phone is upright.
 - Use the buttons at the bottom to scramble, undo, redo, or reset. Scramble plays 25 random moves and shows them at the top of the screen. Reset rewinds every move quickly back to the solved cube.
 
 In written notation, a letter alone is a clockwise quarter turn, `'` (prime) makes it counterclockwise, and `2` makes it a half turn. For example, `R U R' U2` means: right clockwise, up clockwise, right counterclockwise, up half turn.
@@ -56,7 +58,6 @@ In written notation, a letter alone is a clockwise quarter turn, `'` (prime) mak
 
 Everything, including the solvers, will run in the browser.
 
-- A mobile-friendly layout with touch controls.
 - Enter a custom color configuration and check whether it is solvable.
 - Solve the cube with several algorithms, from a beginner layer-by-layer method to Kociemba's two-phase algorithm.
 - Step through solutions with animated forward and backward controls.
@@ -84,7 +85,7 @@ src/
 │   ├── toolbar.js       # Scramble, Undo, Redo and Reset buttons, and the scramble text
 │   └── moveButtons.js   # The face-turn buttons on the right
 └── scene/
-    ├── camera.js        # Perspective camera
+    ├── camera.js        # Perspective camera, and fitting the whole cube on any screen
     ├── lights.js        # Directional and ambient lights
     └── renderer.js      # WebGL renderer attached to the canvas
 tests/                   # Mirrors src/, one test file per source file
@@ -97,7 +98,10 @@ tests/                   # Mirrors src/, one test file per source file
 │   └── TurnAnimator.test.js
 ├── input/
 │   ├── drag.test.js
-│   └── keyboard.test.js
+│   ├── keyboard.test.js
+│   └── mouse.test.js
+├── scene/
+│   └── camera.test.js
 └── helpers/             # Shared test code, e.g. reading stickers off the 3D model
 ```
 
