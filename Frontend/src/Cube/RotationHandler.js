@@ -4,13 +4,19 @@ class RotationHandler {
     constructor(scene, rubiksCube) {
         this.scene = scene;
         this.rubiksCube = rubiksCube;
-        this.currentSubCubesToRotate = [];
         this.rotationAxes = this.getRotationAxes()
         this.angles = this.getAngles()
         this.faceColors = this.getFaceColors();
-        this.INTERVAL_MS = 1;
-        this.ROTATION_FRACTION = 0.05;
+        this.TURN_DURATION_S = 0.2;
         this.FLOAT_ERROR = 0.01;
+
+        // Turns requested while another one is animating wait here
+        this.turnQueue = [];
+        this.currentTurn = null;
+
+        // The turning layer is attached to this pivot at the cube's center and rotated as one group
+        this.pivot = new THREE.Object3D();
+        this.scene.add(this.pivot);
     }
 
     rotateWhiteFace(direction) {
@@ -38,52 +44,64 @@ class RotationHandler {
     }
 
     rotateFace(direction, faceColor) {
-        this.currentSubCubesToRotate = this.getSubCubesToRotate(faceColor);
-        const rotationAxis = this.getRotationAxis(faceColor);
-        const angle = this.getRotationAngle(direction);
-        this.currentRotation = 0;
-    
-        // Get the center of the Rubik's cube (origin is assumed to be (0,0,0))
-        const cubeCenter = new THREE.Vector3(0, 0, 0);
-    
-        // Calculate the step increment for rotation
-        const step = this.ROTATION_FRACTION * angle;
-        const totalSteps = Math.abs(angle / step);
-        let stepsCompleted = 0;
-    
-        const rotationInterval = setInterval(() => {
-            if (stepsCompleted < totalSteps) {
-                // Rotate each subcube around the center of the Rubik's Cube
-                this.currentSubCubesToRotate.forEach(subCube => {
-                    this.rotateAroundPoint(subCube, cubeCenter, rotationAxis, step);
-                });
-                this.currentRotation += step;
-                stepsCompleted++;
-            } else {
-                this.completeRotation(rotationInterval, rotationAxis, angle, cubeCenter);
+        this.turnQueue.push({ direction, faceColor });
+    }
+
+    // Called every frame from the render loop with the seconds since the last frame
+    update(deltaSeconds) {
+        if (!this.currentTurn) {
+            if (this.turnQueue.length === 0) {
+                return;
             }
-        }, this.INTERVAL_MS);
+            this.startTurn(this.turnQueue.shift());
+        }
+
+        const turn = this.currentTurn;
+        turn.elapsed = Math.min(turn.elapsed + deltaSeconds, this.TURN_DURATION_S);
+        const progress = turn.elapsed / this.TURN_DURATION_S;
+        this.pivot.setRotationFromAxisAngle(turn.axis, turn.angle * this.easeInOut(progress));
+
+        if (progress === 1) {
+            this.completeTurn();
+        }
     }
-    
-    completeRotation(rotationInterval, rotationAxis, angle, cubeCenter) {
-        clearInterval(rotationInterval);
-        // Correct for any remaining rotation precision errors
-        const correction = angle - this.currentRotation;
-        this.currentSubCubesToRotate.forEach(subCube => {
-            this.rotateAroundPoint(subCube, cubeCenter, rotationAxis, correction);
-            // Apply final transformation to ensure it's updated correctly in world space
-            subCube.updateMatrixWorld(true);
+
+    startTurn({ direction, faceColor }) {
+        this.pivot.rotation.set(0, 0, 0);
+        const subCubes = this.getSubCubesToRotate(faceColor);
+        // attach() keeps each sub cube where it is in the world while making it a child of the pivot
+        subCubes.forEach(subCube => this.pivot.attach(subCube));
+
+        this.currentTurn = {
+            subCubes,
+            axis: this.getRotationAxis(faceColor),
+            angle: this.getRotationAngle(direction),
+            elapsed: 0
+        };
+    }
+
+    completeTurn() {
+        this.currentTurn.subCubes.forEach(subCube => {
+            this.scene.attach(subCube);
+            this.snapToGrid(subCube);
         });
-    
-        this.currentSubCubesToRotate = [];
+        this.pivot.rotation.set(0, 0, 0);
+        this.currentTurn = null;
     }
-    
-    rotateAroundPoint(object, point, axis, angle) {
-        object.position.sub(point);
-        object.position.applyAxisAngle(axis, angle);
-        object.position.add(point);
-        object.rotateOnWorldAxis(axis, angle);
-    }    
+
+    // Removes floating point error so it can't build up over many turns
+    snapToGrid(subCube) {
+        subCube.position.round();
+
+        // After quarter turns, every entry of a sub cube's rotation matrix is exactly -1, 0 or 1
+        const rotationMatrix = new THREE.Matrix4().makeRotationFromQuaternion(subCube.quaternion);
+        rotationMatrix.elements = rotationMatrix.elements.map(Math.round);
+        subCube.quaternion.setFromRotationMatrix(rotationMatrix);
+    }
+
+    easeInOut(t) {
+        return t * t * (3 - 2 * t);
+    }
     
     getRotationAxis(faceColor) {
         if (faceColor === this.faceColors.WHITE) {

@@ -9,8 +9,16 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const scene = new THREE.Scene();
 const camera = getCamera();
 const renderer = getRenderer();
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setAnimationLoop(animate);
+const clock = new THREE.Clock();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -28,11 +36,17 @@ rubiksCube.allSubCubes.forEach(subCube =>
 )
 
 function animate() {
+    rotationHandler.update(clock.getDelta());
     controls.update();
     renderer.render(scene, camera);
 }
 
 document.addEventListener('keydown', (event) => {
+    // Ignore auto-repeat from a held key so it doesn't flood the turn queue
+    if (event.repeat) {
+        return;
+    }
+
     if (event.key === 'w' || event.key === 'W') {
         const direction = event.shiftKey ? 'counterclockwise' : 'clockwise';
         rotationHandler.rotateWhiteFace(direction);
