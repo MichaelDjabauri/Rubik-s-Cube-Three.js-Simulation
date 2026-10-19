@@ -1,21 +1,21 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getCamera } from './Utils/Camera.js';
-import { getRenderer } from './Utils/Renderer.js';
-import { getDirectionalLight, getAmbientLight } from './Utils/Light.js';
-import RubiksCube from './Cube/RubiksCube.js';
-import RotationHandler from './Cube/RotationHandler.js';
+import { createCamera } from './scene/camera.js';
+import { createRenderer } from './scene/renderer.js';
+import { createLights } from './scene/lights.js';
+import RubiksCube from './cube/RubiksCube.js';
+import TurnAnimator from './cube/TurnAnimator.js';
 
 // Scene, camera, renderer and lights
 const scene = new THREE.Scene();
-const camera = getCamera();
-const renderer = getRenderer();
-scene.add(getDirectionalLight(), getAmbientLight());
+const camera = createCamera();
+const renderer = createRenderer();
+scene.add(...createLights());
 
-// The cube and the handler that animates its face turns
+// The cube and the animator that plays its face turns
 const rubiksCube = new RubiksCube();
 scene.add(rubiksCube);
-const rotationHandler = new RotationHandler(rubiksCube);
+const turnAnimator = new TurnAnimator(rubiksCube);
 
 // Mouse controls: drag to orbit the camera, scroll to zoom
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -33,7 +33,7 @@ document.addEventListener('keydown', (event) => {
         return;
     }
 
-    rotationHandler.rotateFace(color, event.shiftKey ? 'counterclockwise' : 'clockwise');
+    turnAnimator.rotateFace(color, event.shiftKey ? 'counterclockwise' : 'clockwise');
 });
 
 // Keep the view undistorted when the window is resized
@@ -47,7 +47,7 @@ window.addEventListener('resize', () => {
 const clock = new THREE.Clock();
 
 function animate() {
-    rotationHandler.update(clock.getDelta());
+    turnAnimator.update(clock.getDelta());
     controls.update();
     renderer.render(scene, camera);
 }

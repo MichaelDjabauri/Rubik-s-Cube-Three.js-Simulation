@@ -1,16 +1,19 @@
 {
-  "devDependencies": {
-    "gh-pages": "^6.1.1",
-    "vite": "^5.4.2"
-  },
+  "name": "rubiks-cube-simulation",
+  "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
-  "homepage": "https://MichaelDjabauri.github.io/Rubik-s-Cube-Three.js-Simulation/",
   "dependencies": {
     "three": "^0.168.0"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1",
+    "vite": "^5.4.2"
   }
 }

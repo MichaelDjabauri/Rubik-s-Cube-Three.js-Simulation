@@ -1,62 +1,67 @@
 # Rubik's Cube Three.js Simulation
 
-A browser-based 3D Rubik's Cube simulation built with Three.js and Vite. Rotate the cube with the keyboard and inspect it using the mouse.
+A 3D Rubik's Cube that runs entirely in the browser, built with Three.js and Vite. Turn faces with the keyboard and orbit around the cube with the mouse.
 
 [Open the live demo](https://michaeldjabauri.github.io/Rubik-s-Cube-Three.js-Simulation/)
 
 ## Run locally
 
-Requirements: Node.js and npm.
+Requirements: Node.js 18+ and npm.
 
 ```bash
 git clone https://github.com/MichaelDjabauri/Rubik-s-Cube-Three.js-Simulation.git
-cd Rubik-s-Cube-Three.js-Simulation/Frontend
+cd Rubik-s-Cube-Three.js-Simulation
 npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite (usually `http://localhost:5173`). To create a production build, run `npm run build` from `Frontend`; the output is written to `Frontend/dist`.
+Open the local URL printed by Vite (usually `http://localhost:5173/Rubik-s-Cube-Three.js-Simulation/`).
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server with live reload |
+| `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serve the production build locally, exactly as it will be published |
+| `npm run deploy` | Build and publish to GitHub Pages |
 
 ## Controls
 
-- Press `W`, `Y`, `G`, `B`, `R`, or `O` to rotate the white, yellow, green, blue, red, or orange face clockwise.
-- Hold `Shift` while pressing a face key to rotate it counterclockwise.
+- Press `W`, `Y`, `G`, `B`, `R`, or `O` to turn the white, yellow, green, blue, red, or orange face clockwise.
+- Hold `Shift` while pressing a face key to turn it counterclockwise.
 - Drag with the mouse to orbit the camera; scroll to zoom.
 
 ## Planned features
 
-- Add screen buttons and mouse controls for rotating cube faces.
-- Make sure the ui is mobile friendly
-- Add move undo and a reset to the solved state.
-- Add a control to scramble the cube.
-- Allow custom cube color configuration and validate whether a configuration is solvable.
-- Add ability to solve Rubik's Cube using various solving algorithms.
-- Display solutions step by step and animate them, with controls to move forward and backward through the steps.
-- Explore additional solving algorithms and user interface improvements.
+Everything, including the solvers, will run in the browser.
+
+- Undo, reset to the solved state, and scramble.
+- On-screen buttons and mouse/touch dragging to turn faces, with a mobile-friendly layout.
+- Enter a custom color configuration and check whether it is solvable.
+- Solve the cube with several algorithms, from a beginner layer-by-layer method to Kociemba's two-phase algorithm.
+- Step through solutions with animated forward and backward controls.
 
 ## Architecture
 
 ```text
-Frontend/
-├── index.html                 # Canvas and application entry point
-├── vite.config.js             # Vite build output and GitHub Pages base path
-└── src/
-    ├── main.js                # Scene setup, animation loop, controls, input
-    ├── Cube/
-    │   ├── faces.js           # Face colors and the direction each face points
-    │   ├── RubiksCube.js      # 26 colored cubelets and their geometry
-    │   └── RotationHandler.js # Selects and animates face turns
-    └── Utils/
-        ├── Camera.js          # Perspective camera
-        ├── Light.js           # Directional and ambient lights
-        └── Renderer.js        # WebGL renderer attached to the canvas
+index.html               # Canvas and application entry point
+vite.config.js           # GitHub Pages base path
+src/
+├── main.js              # Wires everything together: scene, input, render loop
+├── cube/
+│   ├── faces.js         # Face colors and the direction each face points
+│   ├── RubiksCube.js    # Builds the 26 colored cubelets as a THREE.Group
+│   └── TurnAnimator.js  # Queues and animates face turns
+└── scene/
+    ├── camera.js        # Perspective camera
+    ├── lights.js        # Directional and ambient lights
+    └── renderer.js      # WebGL renderer attached to the canvas
 ```
 
-`main.js` creates the Three.js scene, camera, renderer, lighting, cube, and orbit controls. `RubiksCube` builds the cube from corner, edge, and center cubelets. `RotationHandler` finds cubelets on a selected face and animates a quarter-turn around the corresponding axis. The current project is a frontend simulation; it does not include a solver or backend.
+The cube is a group of 26 cubelets on a 3×3×3 grid centered on the origin. To turn a face, `TurnAnimator` attaches that face's nine cubelets to a temporary pivot, rotates the pivot over a few frames, then snaps the cubelets back onto the grid. Turns requested mid-animation wait in a queue.
 
 ## Deployment
 
-The Vite build is configured for the GitHub Pages project path. `npm run deploy` builds the app and publishes `Frontend/dist` using `gh-pages`.
+`npm run deploy` builds the site into `dist/` and publishes it to the `gh-pages` branch, which GitHub Pages serves. The `base` path in `vite.config.js` must match the repository name.
 
 ## License
 

@@ -4,7 +4,7 @@ import { FACES } from './faces.js';
 const TURN_DURATION_S = 0.2;
 
 // Animates face turns one at a time. Turns requested during an animation wait in a queue.
-class RotationHandler {
+class TurnAnimator {
     constructor(rubiksCube) {
         this.rubiksCube = rubiksCube;
         this.turnQueue = [];
@@ -84,4 +84,4 @@ function easeInOut(t) {
     return t * t * (3 - 2 * t);
 }
 
-export default RotationHandler;
+export default TurnAnimator;
