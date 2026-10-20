@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createEditor, PROBLEM_GLOW } from '../../src/ui/editor.js';
+import CubeDraft from '../../src/cube/CubeDraft.js';
 import Cube from '../../src/cube/Cube.js';
 import CubeState, { SOLVED } from '../../src/cube/CubeState.js';
 import { parseMoves } from '../../src/cube/notation.js';
@@ -385,5 +386,49 @@ describe('clearing', () => {
     it("doesn't ask when there is nothing to clear", () => {
         button('Clear').click();
         expect(confirm).not.toHaveBeenCalled();
+    });
+});
+
+describe('the editor with a remembered draft', () => {
+    it('starts from a saved draft and reports every change, so it can be remembered', () => {
+        document.body.innerHTML = '<div id="editor" hidden></div>';
+        const saved = new CubeDraft();
+        saved.paint(0, 'F');
+        const changes = [];
+
+        const remembering = createEditor({
+            cube: new Cube(),
+            picker: { pick: event => (event.sticker === undefined ? null : { faceletIndex: event.sticker }) },
+            canvas,
+            controls,
+            cameraGuide: { flyTo: () => {} },
+            onLayoutChange: () => {},
+            onClose: () => {},
+            savedDraft: saved.toString(),
+            onDraftChange: text => changes.push(text)
+        });
+        remembering.open();
+        expect(changes.at(-1)).toBe(saved.toString());
+
+        tap(1); // Paints with the selected color, white (F)
+        expect(changes.at(-1)[1]).toBe('F');
+    });
+
+    it('ignores a damaged saved draft', () => {
+        document.body.innerHTML = '<div id="editor" hidden></div>';
+        const changes = [];
+        const fresh = createEditor({
+            cube: new Cube(),
+            picker: { pick: () => null },
+            canvas: new EventTarget(),
+            controls,
+            cameraGuide: { flyTo: () => {} },
+            onLayoutChange: () => {},
+            onClose: () => {},
+            savedDraft: 'not a draft',
+            onDraftChange: text => changes.push(text)
+        });
+        fresh.open();
+        expect(changes.at(-1)).toBe(new CubeDraft().toString());
     });
 });

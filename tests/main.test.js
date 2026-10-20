@@ -45,22 +45,50 @@ const BODY = readFileSync('index.html', 'utf8')
     .replace(/<script[\s\S]*?<\/script>/, '');
 
 let renderer;
+let previousAppListeners = []; // So each test's app is the only one listening to the page
 let clock; // The animation clock in milliseconds, which in a browser runs on the same clock as performance.now()
 
-// Starts a fresh copy of the app on a screen of the given size
-async function startApp({ width = 1024, height = 768 } = {}) {
+// Starts a fresh copy of the app on a screen of the given size.
+// reload: keep what the browser remembered, like reloading the page. link: the part of the address after the #.
+async function startApp({ width = 1024, height = 768, reload = false, link = '' } = {}) {
     window.happyDOM.setViewport({ width, height });
-    window.localStorage.clear(); // Every test is someone's first visit
+    if (!reload) {
+        window.localStorage.clear(); // Every test is someone's first visit
+    }
+    window.history.replaceState(null, '', `/${link}`);
     document.body.innerHTML = BODY;
     document.body.className = '';
     delete document.documentElement.dataset.theme;
     vi.resetModules();
     clock = performance.now();
-    await import('../src/main.js');
+    for (const [target, ...listener] of previousAppListeners) {
+        target.removeEventListener(...listener);
+    }
+    previousAppListeners = await recordListeners([window, document], () => import('../src/main.js'));
     renderer = (await import('three')).WebGLRenderer.latest;
 }
 
 beforeEach(() => startApp());
+
+// Runs start() and returns every listener it added to the targets, as [target, type, listener, options]
+async function recordListeners(targets, start) {
+    const added = [];
+    const originals = targets.map(target => target.addEventListener);
+    targets.forEach((target, index) => {
+        target.addEventListener = function (...listener) {
+            added.push([target, ...listener]);
+            return originals[index].apply(this, listener);
+        };
+    });
+    try {
+        await start();
+    } finally {
+        targets.forEach((target, index) => {
+            target.addEventListener = originals[index];
+        });
+    }
+    return added;
+}
 
 function $(selector) {
     return document.querySelector(selector);
@@ -294,5 +322,89 @@ describe('the app', () => {
         expect(renderer.camera.position.distanceTo(start)).toBeLessThan(1e-6); // Still waiting
         runFrames(10);
         expect(renderer.camera.position.distanceTo(start)).toBeGreaterThan(0.1);
+    });
+
+    it('remembers the cube, its moves and the scramble after a reload', async () => {
+        $('#scramble').click();
+        const scrambleText = $('#cube-info').textContent;
+        pressKey('r');
+        pressKey('z', { ctrlKey: true });
+
+        await startApp({ reload: true });
+        expect($('#cube-info').textContent).toBe(scrambleText);
+        expect($('#undo').disabled).toBe(false);
+        expect($('#redo').disabled).toBe(false);
+    });
+
+    it('remembers the half-painted cube in the editor after a reload', async () => {
+        // A draft with the whole front face painted white
+        const draft = [...'-'.repeat(54)];
+        [4, 13, 31, 40, 49].forEach((center, index) => (draft[center] = 'URDLB'[index]));
+        for (let sticker = 18; sticker < 27; sticker++) {
+            draft[sticker] = 'F';
+        }
+        window.localStorage.setItem('rubiks-cube.draft', draft.join(''));
+
+        await startApp({ reload: true });
+        $('#edit').click();
+        expect(document.querySelectorAll('.editor-steps button.complete')).toHaveLength(1);
+        expect(window.localStorage.getItem('rubiks-cube.draft')).toBe(draft.join(''));
+    });
+
+    it('opens a cube from a link, and takes the link out of the address', async () => {
+        await startApp({ link: "#v=1&moves=RU%27&scramble=RU%27" });
+        expect($('#cube-info').textContent).toBe("Scramble: R U'");
+        expect($('#undo').disabled).toBe(false);
+        expect(window.location.hash).toBe('');
+        // And remembers it
+        expect(window.localStorage.getItem('rubiks-cube.cube')).toContain('moves=RU%27');
+    });
+
+    it('says so when a link is broken', async () => {
+        await startApp({ link: '#v=1&moves=nonsense' });
+        expect($('#toast').hidden).toBe(false);
+        expect($('#toast').textContent).toContain("couldn't be opened");
+        expect($('#undo').disabled).toBe(true);
+    });
+
+    it('opens a link pasted while the app is running, asking first when there is progress', () => {
+        window.confirm = () => true; // The simulated page has no confirm of its own
+        try {
+            $('#edit').click();
+            pressKey('Escape');
+            pressKey('r');
+            window.history.replaceState(null, '', '/#v=1&scramble=F&moves=F');
+            window.dispatchEvent(new Event('hashchange'));
+            expect($('#cube-info').textContent).toBe('Scramble: F');
+
+            // Opening a link while the editor is open closes it
+            $('#edit').click();
+            window.history.replaceState(null, '', '/#v=1&scramble=B&moves=B');
+            window.dispatchEvent(new Event('hashchange'));
+            expect($('#editor').hidden).toBe(true);
+            expect($('#cube-info').textContent).toBe('Scramble: B');
+        } finally {
+            delete window.confirm;
+        }
+    });
+
+    it('copies a link with the Share button that opens the same cube', async () => {
+        let copied = null;
+        Object.defineProperty(window.navigator, 'clipboard', {
+            configurable: true,
+            value: { writeText: async text => (copied = text) }
+        });
+        try {
+            $('#scramble').click();
+            const scrambleText = $('#cube-info').textContent;
+            $('#share-button').click();
+            await vi.waitFor(() => expect(copied).not.toBeNull());
+            expect($('#toast').textContent).toContain('Link copied');
+
+            await startApp({ link: `#${copied.split('#')[1]}` });
+            expect($('#cube-info').textContent).toBe(scrambleText);
+        } finally {
+            delete window.navigator.clipboard;
+        }
     });
 });

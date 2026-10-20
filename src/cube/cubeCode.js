@@ -1,0 +1,82 @@
+import { parseMove, formatMove, formatMoves } from './notation.js';
+import { validateFacelets } from './validate.js';
+
+// Writes a whole cube down as a short line of text, and reads it back. The same text is saved in the
+// browser (so a reload never loses a cube) and put in shared links after the # (so a friend opens the same cube).
+//
+// A cube is described by a snapshot (see Cube.snapshot):
+//   start           the 54 stickers of a copied cube in CubeState's layout, or null if it started solved
+//   history         the moves made since the start, as parsed moves
+//   redo            undone moves that can be redone, most recently undone last
+//   scramble        the latest scramble's notation, or null
+//   solveMoveCount  the number of moves in the solve in progress, or null if there is none
+//
+// The text looks like a web address's query, and leaves out empty parts, e.g.
+//   v=1&moves=RU2F'&scramble=RU2F'
+// Moves are written without spaces, since every move starts with its face letter.
+
+const VERSION = '1';
+const FACELETS = /^[URFDLB]{54}$/;
+const MOVES = /^([URFDLB]['2]?)*$/;
+const COUNT = /^\d{1,6}$/;
+
+export function encodeCube({ start, history, redo = [], scramble = null, solveMoveCount = null }) {
+    const parts = new URLSearchParams({ v: VERSION });
+    if (start !== null) {
+        parts.set('start', start);
+    }
+    if (history.length > 0) {
+        parts.set('moves', compactMoves(history));
+    }
+    if (redo.length > 0) {
+        parts.set('redo', compactMoves(redo));
+    }
+    if (scramble !== null) {
+        parts.set('scramble', scramble.replaceAll(' ', ''));
+    }
+    if (solveMoveCount !== null) {
+        parts.set('solve', String(solveMoveCount));
+    }
+    return parts.toString();
+}
+
+// Reads a cube written by encodeCube. Returns its snapshot, or null if the text isn't a cube or is damaged.
+// A copied cube must be a cube that could really exist, so a mistyped link can't load an impossible one.
+export function decodeCube(text) {
+    const parts = new URLSearchParams(text);
+    if (parts.get('v') !== VERSION) {
+        return null;
+    }
+
+    const start = parts.get('start');
+    const moves = parts.get('moves') ?? '';
+    const redo = parts.get('redo') ?? '';
+    const scramble = parts.get('scramble');
+    const solve = parts.get('solve');
+
+    const isValid = (start === null || (FACELETS.test(start) && validateFacelets([...start]).valid))
+        && MOVES.test(moves)
+        && MOVES.test(redo)
+        && (scramble === null || (scramble !== '' && MOVES.test(scramble)))
+        && (solve === null || COUNT.test(solve));
+    if (!isValid) {
+        return null;
+    }
+
+    return {
+        start,
+        history: expandMoves(moves),
+        redo: expandMoves(redo),
+        scramble: scramble === null ? null : formatMoves(expandMoves(scramble)),
+        solveMoveCount: solve === null ? null : Number(solve)
+    };
+}
+
+function compactMoves(moves) {
+    return moves.map(formatMove).join('');
+}
+
+// "RU2F'" becomes [R, U2, F']
+function expandMoves(text) {
+    return (text.match(/[URFDLB]['2]?/g) ?? []).map(parseMove);
+}

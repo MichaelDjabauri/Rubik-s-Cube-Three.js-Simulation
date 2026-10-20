@@ -23,6 +23,7 @@ class Cube {
         this.lastScramble = null; // Notation of the latest scramble, until the next reset
         // Whether the starting point is a cube copied in with the editor, rather than the solved cube
         this.startsFromCopy = false;
+        this.startFacelets = SOLVED; // The starting point's 54 stickers
 
         // The solve the user is working on, after a scramble or loading an unsolved copy: { moveCount }
         this.currentSolve = null;
@@ -98,6 +99,31 @@ class Cube {
         this.beginSolve();
     }
 
+    // Everything needed to bring this cube back later, e.g. after a reload or in a shared link
+    // (see cubeCode.js for how it's written down)
+    snapshot() {
+        return {
+            start: this.startsFromCopy ? this.startFacelets : null,
+            history: [...this.history],
+            redo: [...this.redoStack],
+            scramble: this.lastScramble,
+            solveMoveCount: this.currentSolve ? this.currentSolve.moveCount : null
+        };
+    }
+
+    // Brings back a cube from a snapshot, showing it straight away without animating the moves
+    restore({ start, history, redo, scramble, solveMoveCount }) {
+        this.startFrom(start ?? SOLVED);
+        this.startsFromCopy = start !== null;
+        this.state.applyMoves(history);
+        this.model.setStickers(this.state.facelets);
+
+        this.history = [...history];
+        this.redoStack = [...redo];
+        this.lastScramble = scramble;
+        this.currentSolve = solveMoveCount === null ? null : { moveCount: solveMoveCount };
+    }
+
     get canUndo() {
         return this.history.length > 0;
     }
@@ -114,6 +140,7 @@ class Cube {
     // Shows the given stickers right away, as the new starting point with an empty history
     startFrom(facelets) {
         this.animator.clear();
+        this.startFacelets = [...facelets].join('');
         this.state = new CubeState(facelets);
         this.model.setStickers(this.state.facelets);
 

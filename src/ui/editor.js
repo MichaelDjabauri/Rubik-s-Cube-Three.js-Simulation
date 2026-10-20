@@ -29,9 +29,15 @@ const STEPS = [
 // using `picker` (see input/picking.js).
 // onLayoutChange is called when the panel appears, disappears or changes size, so the camera can refit.
 // onClose is called when the editor closes.
-export function createEditor({ cube, picker, canvas, controls, cameraGuide, onLayoutChange, onClose }) {
+// savedDraft: a draft remembered from an earlier visit, as written by CubeDraft.toString, or null.
+// onDraftChange is called with the draft's text whenever it changes, so it can be remembered.
+export function createEditor({
+    cube, picker, canvas, controls, cameraGuide, onLayoutChange, onClose,
+    savedDraft = null,
+    onDraftChange = () => {}
+}) {
     let isOpen = false;
-    let draft = new CubeDraft();
+    let draft = CubeDraft.fromString(savedDraft) ?? new CubeDraft();
     let stepIndex = 0;
     let selectedFace = 'F';
     let stroke = null; // The paint stroke in progress: { pointerId, erasing }
@@ -91,6 +97,7 @@ export function createEditor({ cube, picker, canvas, controls, cameraGuide, onLa
     // Brings the 3D cube and the panel up to date with the draft
     function render() {
         const { valid, problems } = validateFacelets(draft.facelets);
+        onDraftChange(draft.toString());
 
         cube.model.setStickers(draft.facelets);
         // The current face glows softly, and stickers involved in a problem glow red

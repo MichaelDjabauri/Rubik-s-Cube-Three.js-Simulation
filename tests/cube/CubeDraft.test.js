@@ -46,3 +46,24 @@ describe('CubeDraft', () => {
         expect(draft.facelets[22]).toBe('F');
     });
 });
+
+describe('CubeDraft as text', () => {
+    it('writes unpainted stickers as -, and reads the text back', () => {
+        const draft = new CubeDraft();
+        draft.paint(0, 'F');
+        const text = draft.toString();
+        expect(text).toHaveLength(54);
+        expect(text.slice(0, 5)).toBe('F---U');
+
+        const copy = CubeDraft.fromString(text);
+        expect(copy.facelets).toEqual(draft.facelets);
+    });
+
+    it('rejects anything that is not a draft', () => {
+        const blank = new CubeDraft().toString();
+        const movedCenter = `${blank.slice(0, 4)}R${blank.slice(5)}`;
+        for (const text of [null, undefined, '', blank.slice(1), `${blank.slice(1)}X`, movedCenter]) {
+            expect(CubeDraft.fromString(text), String(text)).toBeNull();
+        }
+    });
+});

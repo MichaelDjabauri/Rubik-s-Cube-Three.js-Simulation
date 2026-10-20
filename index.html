@@ -167,7 +167,10 @@
             transform: translateX(-50%);
             color: var(--text);
             font: 500 18px ui-monospace, Menlo, monospace;
-            white-space: nowrap;
+            /* One line where it fits, wrapping rather than running into the corner buttons (two on the right) */
+            width: max-content;
+            max-width: calc(100% - 2 * (16px + 2 * 44px + 12px + 16px));
+            text-align: center;
             /* The rest of the page can't be selected, but this can, e.g. to copy a scramble */
             user-select: text;
             -webkit-user-select: text;
@@ -192,16 +195,20 @@
             right: calc(16px + env(safe-area-inset-right));
         }
 
+        #share-button {
+            right: calc(16px + 44px + 12px + env(safe-area-inset-right));
+        }
+
         #theme-button {
             left: calc(16px + env(safe-area-inset-left));
         }
 
-        /* The theme button shows the theme it switches to: a moon in the light theme, a sun in the dark one */
-        #theme-button svg {
+        .corner-button svg {
             display: block;
             margin: auto;
         }
 
+        /* The theme button shows the theme it switches to: a moon in the light theme, a sun in the dark one */
         :root[data-theme="light"] #theme-button .icon-sun,
         :root:not([data-theme="light"]) #theme-button .icon-moon {
             display: none;
@@ -289,6 +296,25 @@
             font-size: 15px;
         }
 
+        /* Short messages like "Link copied", just under the corner buttons */
+        #toast {
+            position: fixed;
+            top: calc(72px + env(safe-area-inset-top));
+            left: 50%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: calc(100% - 32px);
+            box-sizing: border-box;
+            padding: 10px 16px;
+            border-radius: 12px;
+            background: var(--hint);
+            color: var(--text);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            font: 500 15px system-ui, sans-serif;
+            text-align: center;
+            pointer-events: none;
+        }
+
         /* "Solved!" pops up in the middle of the screen, stays a moment, and fades away */
         #solved-message {
             position: fixed;
@@ -338,6 +364,7 @@
         body.editing #cube-info,
         body.editing #help-button,
         body.editing #theme-button,
+        body.editing #share-button,
         body.editing #hint {
             display: none;
         }
@@ -576,11 +603,13 @@
                 padding: 0;
             }
 
+            /* Under the corner buttons, which leave too little room between them */
             #cube-info {
-                top: calc(12px + env(safe-area-inset-top));
-                /* Room on both sides for the theme and ? buttons */
-                left: 68px;
-                right: 68px;
+                top: calc(70px + env(safe-area-inset-top));
+                left: 16px;
+                right: 16px;
+                width: auto;
+                max-width: none;
                 transform: none;
                 white-space: normal;
                 text-align: center;
@@ -603,6 +632,11 @@
             #help-button {
                 right: auto;
                 left: calc(16px + 44px + 12px + env(safe-area-inset-left));
+            }
+
+            #share-button {
+                right: auto;
+                left: calc(16px + 2 * (44px + 12px) + env(safe-area-inset-left));
             }
 
             #hint {
@@ -637,7 +671,8 @@
 
             #cube-info {
                 top: calc(8px + env(safe-area-inset-top));
-                width: 60vw;
+                /* Narrow enough to stay clear of the three corner buttons */
+                width: 50vw;
                 white-space: normal;
                 text-align: center;
                 font-size: 14px;
@@ -683,6 +718,13 @@
     <div id="cube-info"></div>
     <div id="solved-message" aria-live="polite"></div>
     <button id="help-button" class="corner-button" title="Help (?)" aria-label="Help">?</button>
+    <button id="share-button" class="corner-button" title="Share this cube as a link" aria-label="Share this cube as a link">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" />
+            <path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16" />
+        </svg>
+    </button>
+    <div id="toast" role="status" hidden></div>
     <button id="theme-button" class="corner-button" title="Switch theme" aria-label="Switch theme">
         <svg class="icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
             <circle cx="12" cy="12" r="4.5" />
@@ -711,6 +753,12 @@
                 <li>Drag around the cube to orbit it. Scroll or pinch to zoom.</li>
                 <li>Double-click or double-tap to go back to the starting view.</li>
                 <li>The sun or moon button in the corner switches between the dark and light theme.</li>
+            </ul>
+
+            <h3>Saving and sharing</h3>
+            <ul>
+                <li>Your cube, its moves and the cube you're painting are remembered, even if you close the page.</li>
+                <li>The share button next to <b>?</b> makes a link to your cube. Whoever opens it gets exactly the same cube, scramble included.</li>
             </ul>
 
             <h3>Buttons</h3>

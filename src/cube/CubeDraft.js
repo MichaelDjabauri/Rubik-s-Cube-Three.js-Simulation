@@ -2,6 +2,7 @@ import { SOLVED } from './CubeState.js';
 
 // The center sticker of each face, in CubeState's layout
 const CENTERS = [4, 13, 22, 31, 40, 49];
+const UNPAINTED = '-';
 
 // A cube being painted in the editor: 54 stickers in CubeState's layout, each a face letter
 // or null when not painted yet. The 6 centers always keep their colors, since they define which face is which.
@@ -33,6 +34,25 @@ class CubeDraft {
     // Whether anything besides the centers has been painted
     get hasPaint() {
         return this.facelets.some((sticker, index) => sticker !== null && !this.isCenter(index));
+    }
+
+    // The draft as 54 characters: face letters, and - for unpainted stickers
+    toString() {
+        return this.facelets.map(sticker => sticker ?? UNPAINTED).join('');
+    }
+
+    // Reads a draft written by toString, or returns null if the text isn't one
+    static fromString(text) {
+        if (typeof text !== 'string' || !/^[URFDLB-]{54}$/.test(text)) {
+            return null;
+        }
+        const draft = new CubeDraft();
+        const facelets = [...text].map(sticker => (sticker === UNPAINTED ? null : sticker));
+        if (CENTERS.some(index => facelets[index] !== draft.facelets[index])) {
+            return null; // The centers never change
+        }
+        draft.facelets = facelets;
+        return draft;
     }
 
     setSticker(index, value) {

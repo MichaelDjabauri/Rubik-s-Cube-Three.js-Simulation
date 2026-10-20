@@ -431,3 +431,68 @@ describe('Cube onSolved (celebrating the user solving the cube)', () => {
         expect(solves).toEqual([1, 1]);
     });
 });
+
+describe('Cube snapshot and restore', () => {
+    it('brings back the stickers, history, redo moves, scramble and solve straight away', () => {
+        const original = new Cube();
+        original.scramble(seededRandom(3));
+        original.move("R U'");
+        original.undo();
+
+        const restored = new Cube();
+        restored.restore(original.snapshot());
+
+        expect(restored.state.toString()).toBe(original.state.toString());
+        expect(readFacelets(restored.model)).toBe(original.state.toString()); // No animation needed
+        expect(restored.animator.isBusy).toBe(false);
+        expect(restored.history).toEqual(original.history);
+        expect(restored.redoStack).toEqual(original.redoStack);
+        expect(restored.lastScramble).toBe(original.lastScramble);
+        expect(restored.currentSolve).toEqual(original.currentSolve);
+        expect(restored.snapshot()).toEqual(original.snapshot());
+    });
+
+    it('keeps a copied cube as the starting point, so reset rewinds to it', () => {
+        const start = new CubeState().applyMoves(parseMoves("R U'")).toString();
+        const original = new Cube();
+        original.loadState(start);
+        original.move('F');
+
+        const restored = new Cube();
+        restored.restore(original.snapshot());
+        expect(restored.startsFromCopy).toBe(true);
+        expect(restored.snapshot().start).toBe(start);
+
+        restored.reset();
+        finishAnimations(restored);
+        expect(restored.state.toString()).toBe(start);
+        expect(readFacelets(restored.model)).toBe(start);
+    });
+
+    it('has no starting stickers in the snapshot when the cube started solved', () => {
+        const cube = new Cube();
+        cube.move('R');
+        expect(cube.snapshot()).toEqual({ start: null, history: parseMoves('R'), redo: [], scramble: null, solveMoveCount: null });
+    });
+
+    it('celebrates a restored solve with the moves counted before and after', () => {
+        const original = new Cube();
+        original.loadState(new CubeState().applyMoves(parseMoves('R U')).toString());
+        original.move("U'");
+
+        const restored = new Cube();
+        restored.restore(original.snapshot());
+        const solves = [];
+        restored.onSolved = moveCount => solves.push(moveCount);
+        restored.move("R'");
+        expect(solves).toEqual([2]);
+    });
+
+    it('leaves a copied cube for a solved one after resetToSolved', () => {
+        const cube = new Cube();
+        cube.loadState(new CubeState().applyMoves(parseMoves('R')).toString());
+        cube.resetToSolved();
+        expect(cube.snapshot().start).toBeNull();
+        expect(cube.startFacelets).toBe(SOLVED);
+    });
+});

@@ -19,6 +19,9 @@ import { createSolvedMessage } from './ui/solvedMessage.js';
 import { createHelp } from './ui/help.js';
 import { showFirstVisitHint } from './ui/firstVisitHint.js';
 import { setUpTheme } from './ui/theme.js';
+import { createCubeMemory } from './ui/savedCube.js';
+import { setUpShareButton, shareLink, openLinkedCube } from './ui/share.js';
+import { createToast } from './ui/toast.js';
 
 // This file sets everything up first and starts it at the very end, so nothing runs before it exists.
 // Where two parts need each other, a small arrow function like () => editor.open() looks the other
@@ -58,6 +61,15 @@ cube.onSolved = moveCount => celebration.play(() => solvedMessage.show(moveCount
 // Finds the sticker under the pointer, for turning layers and for painting in the editor
 const picker = createStickerPicker({ camera, canvas, cubeModel: cube.model });
 
+// The browser remembers the cube and the editor's draft, so a reload never loses them
+const memory = createCubeMemory();
+
+// After anything changes the cube: refresh the buttons and remember the cube
+function cubeChanged() {
+    toolbar.update(cube);
+    memory.saveCube(cube);
+}
+
 // Every command, from the keyboard, the mouse or the buttons, runs here
 const runCommand = createCommandRunner({
     cube,
@@ -66,7 +78,7 @@ const runCommand = createCommandRunner({
         editor.open();
     },
     openHelp: () => help.open(),
-    afterEach: () => toolbar.update(cube)
+    afterEach: cubeChanged
 });
 
 // Buttons: the toolbar at the bottom and the face buttons on the right
@@ -81,11 +93,35 @@ const editor = createEditor({
     controls,
     cameraGuide,
     onLayoutChange: () => fitCubeOnScreen(),
-    onClose: () => toolbar.update(cube)
+    onClose: cubeChanged,
+    savedDraft: memory.loadDraft(),
+    onDraftChange: text => memory.saveDraft(text)
 });
 
 // The help overlay, opened with the ? button or the ? key
 const help = createHelp();
+
+// Short messages near the top, like "Link copied"
+const toast = createToast();
+
+// Sharing a cube by link, and opening a cube from a link (the part of the address after the #)
+setUpShareButton({ getLink: () => shareLink(cube), showMessage: toast.show });
+
+function openCubeFromLink() {
+    const opened = openLinkedCube({
+        cube,
+        showMessage: toast.show,
+        beforeOpen: () => {
+            if (editor.isOpen) {
+                editor.close();
+            }
+            celebration.stop();
+        }
+    });
+    if (opened) {
+        cubeChanged();
+    }
+}
 
 // Keys, and dragging stickers to turn layers. Both are switched off while the editor or help is open.
 setUpKeyboard({ overlays: [editor, help], runCommand });
@@ -164,6 +200,12 @@ function animate(timestamp) {
 
 // Start
 setUpTheme();
+const savedCube = memory.loadCube();
+if (savedCube) {
+    cube.restore(savedCube);
+}
+openCubeFromLink();
+window.addEventListener('hashchange', openCubeFromLink);
 toolbar.update(cube);
 showFirstVisitHint();
 fitCubeOnScreen();

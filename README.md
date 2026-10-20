@@ -54,6 +54,8 @@ The keyboard uses standard Rubik's Cube notation, where faces are named by their
 - Use the buttons at the bottom to scramble, undo, redo, or reset. Scramble plays 25 random moves and shows them at the top of the screen. Reset rewinds every move quickly back to the start: the solved cube, or the cube you copied in.
 - Use **Copy my cube** to paint your own real cube into the app (see below).
 - Press the **?** button (or the `?` key) for a list of every control. First-time visitors also get a short hint.
+- The app remembers your cube, its moves and the cube you're painting in the editor, so a reload or a closed tab never loses a solve in progress.
+- The share button next to **?** makes a link to your cube: its scramble, the moves you made, or a cube you copied in. Whoever opens the link gets exactly the same cube. On a phone it opens the share menu; on a computer it copies the link. If you're in the middle of a cube when you open a link, the app asks before replacing it.
 - The sun or moon button in the top-left corner switches between the dark and light theme. The app starts in your system's theme and remembers your pick.
 - Double-click or double-tap to swing the camera back to its starting view. Leave the cube alone for a while and the camera slowly circles it, until you touch anything.
 - Solve a scrambled or copied cube with your own moves and the cube celebrates: it hops and spins, confetti flies, and a message tells you how many moves you took. If your system is set to reduce motion, you only get the message.
@@ -97,6 +99,7 @@ src/
 │   ├── scramble.js      # Random scrambles that follow competition rules
 │   ├── faces.js         # Each face's notation letter, color and direction
 │   ├── pieces.js        # Which stickers belong to each corner and edge (Kociemba's tables)
+│   ├── cubeCode.js      # Writes a whole cube down as text, for saving and for shared links
 │   ├── validate.js      # Checks whether a painted cube could be real, and explains why not
 │   ├── CubeDraft.js     # A cube being painted in the editor
 │   ├── RubiksCube.js    # 3D model: the 26 colored cubelets as a THREE.Group
@@ -116,6 +119,9 @@ src/
 │   ├── firstVisitHint.js # The one-time hint for new visitors
 │   ├── theme.js         # The dark and light theme, and the button that switches them
 │   ├── storage.js       # Settings remembered in the browser, e.g. the theme
+│   ├── savedCube.js     # Remembers the cube and the editor's draft in the browser
+│   ├── share.js         # The share button, and opening a cube from a link
+│   ├── toast.js         # Short messages like "Link copied"
 │   └── solvedMessage.js # The "Solved!" message
 └── scene/
     ├── camera.js        # Perspective camera, and fitting the whole cube on any screen
@@ -131,6 +137,7 @@ tests/                   # Mirrors src/, one test file per source file
 │   ├── CubeDraft.test.js
 │   ├── CubeState.test.js
 │   ├── notation.test.js
+│   ├── cubeCode.test.js
 │   ├── pieces.test.js
 │   ├── scramble.test.js
 │   ├── RubiksCube.test.js
@@ -154,14 +161,17 @@ tests/                   # Mirrors src/, one test file per source file
 │   ├── firstVisitHint.test.js
 │   ├── help.test.js
 │   ├── moveButtons.test.js
+│   ├── savedCube.test.js
+│   ├── share.test.js
 │   ├── solvedMessage.test.js
 │   ├── storage.test.js
 │   ├── theme.test.js
+│   ├── toast.test.js
 │   └── toolbar.test.js
 └── helpers/             # Shared test code, e.g. reading stickers off the 3D model
 ```
 
-The cube has two sides that always agree. `CubeState` is the logical cube: it stores the color of all 54 stickers in the standard facelet format used by Kociemba solvers, and it is the source of truth. `RubiksCube` is the 3D model: 26 cubelets on a 3×3×3 grid centered on the origin, each a rounded black body with a glossy sticker on every outer side. A move like `R` updates `CubeState` immediately, then `TurnAnimator` animates the 3D model to match by attaching that face's nine cubelets to a temporary pivot, rotating the pivot over a few frames (going slightly past the target and settling back, like a real cube), and snapping the cubelets back onto the grid. Moves requested mid-animation wait in a queue. `Cube` also keeps the history of moves for undo, redo, and reset, which plays the history backwards at high speed. Mouse turns are tested against an invisible box the size of the cube rather than the moving cubelets, so grabbing works even mid-turn, and the hit point maps straight onto the grid. The cube editor uses the same picking to paint stickers. A copied cube is loaded with `Cube.loadState`, which recolors the stickers and makes that cube the new starting point.
+The cube has two sides that always agree. `CubeState` is the logical cube: it stores the color of all 54 stickers in the standard facelet format used by Kociemba solvers, and it is the source of truth. `RubiksCube` is the 3D model: 26 cubelets on a 3×3×3 grid centered on the origin, each a rounded black body with a glossy sticker on every outer side. A move like `R` updates `CubeState` immediately, then `TurnAnimator` animates the 3D model to match by attaching that face's nine cubelets to a temporary pivot, rotating the pivot over a few frames (going slightly past the target and settling back, like a real cube), and snapping the cubelets back onto the grid. Moves requested mid-animation wait in a queue. `Cube` also keeps the history of moves for undo, redo, and reset, which plays the history backwards at high speed. Mouse turns are tested against an invisible box the size of the cube rather than the moving cubelets, so grabbing works even mid-turn, and the hit point maps straight onto the grid. The cube editor uses the same picking to paint stickers. A copied cube is loaded with `Cube.loadState`, which recolors the stickers and makes that cube the new starting point. `Cube.snapshot()` and `Cube.restore()` capture and bring back the whole cube (starting point, history, redo moves, scramble), and `cubeCode.js` writes a snapshot as a short line of text like `v=1&moves=RU2F'`. The same text is saved in the browser's localStorage and put after the `#` in shared links, so links never reach a server.
 
 ## Deployment
 
