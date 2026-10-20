@@ -35,12 +35,15 @@ export function commandForKey({ key, shiftKey, ctrlKey, metaKey, altKey, repeat 
 
 // Listens for key presses on `target` (the page) and runs the matching commands.
 // overlays: things that cover the cube, like the editor and the help, each with `isOpen` and `close()`.
-// While one is open, only Escape works, to close it.
+// While one is open, only Escape works, to close it. An overlay with its own keys has handleKey(event),
+// which returns true for the keys it used (the solution player's arrow keys, for example).
 export function setUpKeyboard({ overlays, runCommand, target = document }) {
     target.addEventListener('keydown', (event) => {
         const openOverlay = overlays.find(overlay => overlay.isOpen);
         if (openOverlay) {
-            if (event.key === 'Escape') {
+            if (openOverlay.handleKey?.(event)) {
+                event.preventDefault();
+            } else if (event.key === 'Escape') {
                 openOverlay.close();
             }
             return;

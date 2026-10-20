@@ -1,6 +1,6 @@
 # Rubik's Cube Three.js Simulation
 
-A 3D Rubik's Cube that runs entirely in the browser, built with Three.js and Vite. Turn faces with the keyboard and orbit around the cube with the mouse.
+A 3D Rubik's Cube that runs entirely in the browser, built with Three.js and Vite. Turn it, scramble it, color in your own real cube, and let the app show you how to solve it, step by step.
 
 [Open the live demo](https://michaeldjabauri.github.io/Rubik-s-Cube-Three.js-Simulation/)
 
@@ -30,7 +30,7 @@ Open the local URL printed by Vite (usually `http://localhost:5173/Rubik-s-Cube-
 
 ## Tests
 
-The tests use [Vitest](https://vitest.dev) and live in `tests/`, which mirrors the folder structure of `src/`. For example, `src/cube/RubiksCube.js` is tested by `tests/cube/RubiksCube.test.js`. They run in Node without a browser. The cube logic doesn't depend on the page at all, and the few tests that need page elements, like the cube editor's, use [happy-dom](https://github.com/capricorn86/happy-dom), a simulated page. They cover reading and writing notation, the logical cube state (including known facts such as `R U` taking exactly 105 repeats to return to solved), building the 3D cube, animating turns, a check that the 3D model and the logical state always end up showing the same stickers, the solvability check (every scrambled cube passes, and each kind of impossible cube is caught), the cube editor, the buttons, and a smoke test that starts the whole app in a simulated page and uses it like a person would. Together they run every line of the app code (`npm run test:coverage`).
+The tests use [Vitest](https://vitest.dev) and live in `tests/`, which mirrors the folder structure of `src/`. For example, `src/cube/RubiksCube.js` is tested by `tests/cube/RubiksCube.test.js`. They run in Node without a browser. The cube logic doesn't depend on the page at all, and the few tests that need page elements, like the cube editor's, use [happy-dom](https://github.com/capricorn86/happy-dom), a simulated page. They cover reading and writing notation, the solver (including a hundred random scrambles), the logical cube state (including known facts such as `R U` taking exactly 105 repeats to return to solved), building the 3D cube, animating turns, a check that the 3D model and the logical state always end up showing the same stickers, the solvability check (every scrambled cube passes, and each kind of impossible cube is caught), the cube editor, the buttons, and a smoke test that starts the whole app in a simulated page and uses it like a person would. Together they run every line of the app code (`npm run test:coverage`).
 
 ## Controls
 
@@ -51,20 +51,21 @@ The keyboard uses standard Rubik's Cube notation, where faces are named by their
 - Hold `Shift` while pressing the key to turn it counterclockwise.
 - Press `Ctrl+Z` to undo the last move and `Ctrl+Shift+Z` to redo it. On a Mac, `Cmd` works too. Hold the keys to keep going.
 - On a phone or tablet: drag a sticker with one finger to turn its layer, drag the background to orbit, and pinch with two fingers to zoom. The face buttons sit under the cube when the phone is upright.
-- Use the buttons at the bottom to scramble, undo, redo, or reset. Scramble plays 25 random moves and shows them at the top of the screen. Reset rewinds every move quickly back to the start: the solved cube, or the cube you copied in.
-- Use **Copy my cube** to paint your own real cube into the app (see below).
+- Use the buttons at the bottom to scramble, undo, redo, or reset. Scramble plays 25 random moves and shows them at the top of the screen. Reset rewinds every move quickly back to the start: the solved cube, or the cube you colored in.
+- Use **Color my cube** to paint your own real cube into the app (see below).
 - Press the **?** button (or the `?` key) for a list of every control. First-time visitors also get a short hint.
 - The app remembers your cube, its moves and the cube you're painting in the editor, so a reload or a closed tab never loses a solve in progress.
-- The share button next to **?** makes a link to your cube: its scramble, the moves you made, or a cube you copied in. Whoever opens the link gets exactly the same cube. On a phone it opens the share menu; on a computer it copies the link. If you're in the middle of a cube when you open a link, the app asks before replacing it.
+- The share button next to **?** makes a link to your cube: its scramble, the moves you made, or a cube you colored in. Whoever opens the link gets exactly the same cube. On a phone it opens the share menu; on a computer it copies the link. If you're in the middle of a cube when you open a link, the app asks before replacing it.
 - The sun or moon button in the top-left corner switches between the dark and light theme. The app starts in your system's theme and remembers your pick.
 - Double-click or double-tap to swing the camera back to its starting view. Leave the cube alone for a while and the camera slowly circles it, until you touch anything.
-- Solve a scrambled or copied cube with your own moves and the cube celebrates: it hops and spins, confetti flies, and a message tells you how many moves you took. If your system is set to reduce motion, you only get the message.
+- Press **Solve** to see how to solve the cube (see below).
+- Solve a scrambled or colored-in cube with your own moves and the cube celebrates: it hops and spins, confetti flies, and a message tells you how many moves you took. If your system is set to reduce motion, you only get the message.
 
 In written notation, a letter alone is a clockwise quarter turn, `'` (prime) makes it counterclockwise, and `2` makes it a half turn. For example, `R U R' U2` means: right clockwise, up clockwise, right counterclockwise, up half turn.
 
-## Copy your cube
+## Color your cube
 
-**Copy my cube** opens an editor for copying a real, scrambled cube into the app, so you can play with it here (and, later, solve it).
+**Color my cube** opens an editor for coloring in a real, scrambled cube, so you can play with it here and let the app solve it.
 
 1. Hold your cube with the **red center on top** and the **white center facing you**. The centers never move, so they tell the app which face is which.
 2. The editor shows one face at a time and turns the 3D cube to match. Its instruction line says how to hold your cube for each face.
@@ -74,16 +75,34 @@ In written notation, a letter alone is a clockwise quarter turn, `'` (prime) mak
 
 **Close** leaves the editor without changing the app's cube, and so does `Escape`. Your painting is kept, so you can come back to it. After **Done**, reopening the editor shows the cube you loaded, ready for corrections. **Clear** starts over, after asking.
 
-While your copied cube is loaded, the line at the top says so, **Reset** rewinds your moves back to the copy, and **Solved cube** takes the place of Scramble: it leaves the copy and starts again from a solved cube. The copy stays in the editor, so Done brings it back.
+While your colored-in cube is loaded, the line at the top says so, **Reset** rewinds your moves back to it, and **Solved cube** takes the place of Scramble: it leaves your cube and starts again from a solved cube. Your coloring stays in the editor, so Done brings it back.
 
 The check catches mistakes like a wrong number of stickers of a color, a corner or edge with colors that don't belong together (for example two opposite colors, or a corner whose colors run the wrong way round), a piece that appears twice, a twisted corner, a flipped edge, and two swapped pieces. It explains each one, and the stickers involved glow red where it can point at them. The check assumes the standard color scheme: white opposite yellow, red opposite orange, green opposite blue.
 
+## Solve
+
+**Solve** finds a solution with the classic beginner method, layer by layer, starting with the white cross, and shows it one move at a time. It usually takes about 130 moves, in seven stages:
+
+1. **White cross:** the four white edges, in at most 8 moves.
+2. **White corners:** the rest of the white layer.
+3. **Middle layer:** the four edges between the white and yellow layers.
+4. **Yellow cross:** the yellow edges turned to face up.
+5. **Yellow edges:** the yellow edges matched up with their side colors.
+6. **Yellow corners in place:** each yellow corner moved to its own spot.
+7. **Yellow corners turned:** each yellow corner turned to face up.
+
+The player shows the stage, the next move in notation and in plain words (for example "Turn the right (green) face so the front goes down", for a cube held with red on top and white facing you), and makes the face about to turn glow.
+
+- **Back** and **Next** (or the arrow keys) step through the moves, **Play** and **Pause** (or `Space`) play them at a pace you can follow on a real cube, and the slider jumps anywhere, with a colored band for each stage.
+- **Auto-solve** plays the rest as a show: faster and faster, with the camera circling the cube, ending with the celebration.
+- **Share** makes a link with the cube and its solution, which opens straight into the player.
+- **Close** (or `Escape`) leaves the cube wherever the solution got to. The moves are in the history, so Undo and Reset work as usual.
+
+The solver runs in the browser like everything else, and checks every answer on a copy of the cube before showing it.
+
 ## Planned features
 
-Everything, including the solvers, will run in the browser.
-
-- Solve the cube with several algorithms, from a beginner layer-by-layer method to Kociemba's two-phase algorithm.
-- Step through solutions with animated forward and backward controls.
+- A faster solver (Kociemba's two-phase algorithm), and a race between the two solvers.
 
 ## Architecture
 
@@ -100,6 +119,7 @@ src/
 │   ├── faces.js         # Each face's notation letter, color and direction
 │   ├── pieces.js        # Which stickers belong to each corner and edge (Kociemba's tables)
 │   ├── cubeCode.js      # Writes a whole cube down as text, for saving and for shared links
+│   ├── solver.js        # The beginner-method solver, stage by stage
 │   ├── validate.js      # Checks whether a painted cube could be real, and explains why not
 │   ├── CubeDraft.js     # A cube being painted in the editor
 │   ├── RubiksCube.js    # 3D model: the 26 colored cubelets as a THREE.Group
@@ -114,13 +134,14 @@ src/
 ├── ui/
 │   ├── toolbar.js       # The buttons at the bottom, and the scramble text
 │   ├── moveButtons.js   # The face-turn buttons on the right
-│   ├── editor.js        # The "Copy my cube" editor
+│   ├── editor.js        # The "Color my cube" editor
 │   ├── help.js          # The help overlay listing every control
 │   ├── firstVisitHint.js # The one-time hint for new visitors
 │   ├── theme.js         # The dark and light theme, and the button that switches them
 │   ├── storage.js       # Settings remembered in the browser, e.g. the theme
 │   ├── savedCube.js     # Remembers the cube and the editor's draft in the browser
 │   ├── share.js         # The share button, and opening a cube from a link
+│   ├── solutionPlayer.js # Shows a solution step by step, or as an auto-solve show
 │   ├── toast.js         # Short messages like "Link copied"
 │   └── solvedMessage.js # The "Solved!" message
 └── scene/
@@ -140,6 +161,7 @@ tests/                   # Mirrors src/, one test file per source file
 │   ├── cubeCode.test.js
 │   ├── pieces.test.js
 │   ├── scramble.test.js
+│   ├── solver.test.js
 │   ├── RubiksCube.test.js
 │   ├── TurnAnimator.test.js
 │   └── validate.test.js
@@ -163,6 +185,7 @@ tests/                   # Mirrors src/, one test file per source file
 │   ├── moveButtons.test.js
 │   ├── savedCube.test.js
 │   ├── share.test.js
+│   ├── solutionPlayer.test.js
 │   ├── solvedMessage.test.js
 │   ├── storage.test.js
 │   ├── theme.test.js
@@ -171,7 +194,7 @@ tests/                   # Mirrors src/, one test file per source file
 └── helpers/             # Shared test code, e.g. reading stickers off the 3D model
 ```
 
-The cube has two sides that always agree. `CubeState` is the logical cube: it stores the color of all 54 stickers in the standard facelet format used by Kociemba solvers, and it is the source of truth. `RubiksCube` is the 3D model: 26 cubelets on a 3×3×3 grid centered on the origin, each a rounded black body with a glossy sticker on every outer side. A move like `R` updates `CubeState` immediately, then `TurnAnimator` animates the 3D model to match by attaching that face's nine cubelets to a temporary pivot, rotating the pivot over a few frames (going slightly past the target and settling back, like a real cube), and snapping the cubelets back onto the grid. Moves requested mid-animation wait in a queue. `Cube` also keeps the history of moves for undo, redo, and reset, which plays the history backwards at high speed. Mouse turns are tested against an invisible box the size of the cube rather than the moving cubelets, so grabbing works even mid-turn, and the hit point maps straight onto the grid. The cube editor uses the same picking to paint stickers. A copied cube is loaded with `Cube.loadState`, which recolors the stickers and makes that cube the new starting point. `Cube.snapshot()` and `Cube.restore()` capture and bring back the whole cube (starting point, history, redo moves, scramble), and `cubeCode.js` writes a snapshot as a short line of text like `v=1&moves=RU2F'`. The same text is saved in the browser's localStorage and put after the `#` in shared links, so links never reach a server.
+The cube has two sides that always agree. `CubeState` is the logical cube: it stores the color of all 54 stickers in the standard facelet format used by Kociemba solvers, and it is the source of truth. `RubiksCube` is the 3D model: 26 cubelets on a 3×3×3 grid centered on the origin, each a rounded black body with a glossy sticker on every outer side. A move like `R` updates `CubeState` immediately, then `TurnAnimator` animates the 3D model to match by attaching that face's nine cubelets to a temporary pivot, rotating the pivot over a few frames (going slightly past the target and settling back, like a real cube), and snapping the cubelets back onto the grid. Moves requested mid-animation wait in a queue. `Cube` also keeps the history of moves for undo, redo, and reset, which plays the history backwards at high speed. Mouse turns are tested against an invisible box the size of the cube rather than the moving cubelets, so grabbing works even mid-turn, and the hit point maps straight onto the grid. The cube editor uses the same picking to paint stickers. A colored-in cube is loaded with `Cube.loadState`, which recolors the stickers and makes that cube the new starting point. `Cube.snapshot()` and `Cube.restore()` capture and bring back the whole cube (starting point, history, redo moves, scramble), and `cubeCode.js` writes a snapshot as a short line of text like `v=1&moves=RU2F'`. The same text is saved in the browser's localStorage and put after the `#` in shared links, so links never reach a server.
 
 ## Deployment
 

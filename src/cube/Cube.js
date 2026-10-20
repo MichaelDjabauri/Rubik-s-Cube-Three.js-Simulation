@@ -48,13 +48,21 @@ class Cube {
         return scramble;
     }
 
+    // Makes one move of the app's own solution. It goes into the history like any move, but it ends
+    // the user's own solve, so the user never gets a celebration for moves the app made.
+    playSolutionMove(move, duration) {
+        this.record([move], duration);
+        this.currentSolve = null;
+    }
+
     // Takes back the last move. Returns the undone move, or null if there was nothing to undo.
-    undo() {
+    // duration: optional length of the turn in seconds, e.g. shorter when stepping back through a solution quickly
+    undo(duration) {
         const move = this.history.pop();
         if (!move) {
             return null;
         }
-        this.perform(invertMove(move));
+        this.perform(invertMove(move), duration);
         this.redoStack.push(move);
         return move;
     }
@@ -122,6 +130,10 @@ class Cube {
         this.redoStack = [...redo];
         this.lastScramble = scramble;
         this.currentSolve = solveMoveCount === null ? null : { moveCount: solveMoveCount };
+    }
+
+    get isSolved() {
+        return this.state.isSolved();
     }
 
     get canUndo() {

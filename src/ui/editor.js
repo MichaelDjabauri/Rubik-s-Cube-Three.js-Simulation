@@ -19,7 +19,7 @@ const STEPS = [
     { face: 'D', label: 'Bottom', view: [0.25, -1, 0.35], text: 'From the start position, tip the top away from you so orange faces you and white is at the top. Paint the bottom face.' }
 ];
 
-// The "Copy my cube" editor: paint the stickers of a real cube onto the 3D cube, face by face,
+// The "Color my cube" editor: paint the stickers of a real cube onto the 3D cube, face by face,
 // with a live check that the result could be a real cube. Done loads it into `cube`.
 //
 // The painted draft is kept when the editor closes, so closing never loses work, and reopening

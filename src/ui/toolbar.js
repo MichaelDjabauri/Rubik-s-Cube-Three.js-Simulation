@@ -2,8 +2,8 @@
 // Each button sends a command like { type: 'undo' } to onCommand when clicked.
 //
 // The toolbar follows the cube's starting point:
-//   normal:            Scramble, Undo, Redo, Reset (back to solved), Copy my cube
-//   with a copied cube: Solved cube, Undo, Redo, Reset (back to the copy), Copy my cube
+//   normal:            Scramble, Undo, Redo, Reset (back to solved), Solve, Color my cube
+//   with a copied cube: Solved cube, Undo, Redo, Reset (back to the copy), Solve, Color my cube
 // Solved cube takes Scramble's place, since scrambling a copied cube isn't useful, and the
 // info line says that a copied cube is loaded.
 export function createToolbar(onCommand) {
@@ -13,6 +13,7 @@ export function createToolbar(onCommand) {
         undo: document.querySelector('#undo'),
         redo: document.querySelector('#redo'),
         reset: document.querySelector('#reset'),
+        solve: document.querySelector('#solve'),
         edit: document.querySelector('#edit')
     };
     const info = document.querySelector('#cube-info');
@@ -35,8 +36,9 @@ export function createToolbar(onCommand) {
             buttons.undo.disabled = !cube.canUndo;
             buttons.redo.disabled = !cube.canRedo;
             buttons.reset.disabled = !cube.canUndo;
+            buttons.solve.disabled = cube.isSolved;
             buttons.reset.title = cube.startsFromCopy
-                ? 'Rewind every move back to your copied cube'
+                ? 'Rewind every move back to your colored-in cube'
                 : 'Rewind every move back to the solved cube';
 
             info.textContent = infoText(cube);
@@ -46,7 +48,7 @@ export function createToolbar(onCommand) {
 
 function infoText(cube) {
     if (cube.startsFromCopy) {
-        return 'Your copied cube. Reset goes back to it.';
+        return 'Your colored-in cube. Reset goes back to it.';
     }
     return cube.lastScramble ? `Scramble: ${cube.lastScramble}` : '';
 }

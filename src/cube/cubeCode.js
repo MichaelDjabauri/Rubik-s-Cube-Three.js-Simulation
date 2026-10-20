@@ -1,5 +1,6 @@
 import { parseMove, formatMove, formatMoves } from './notation.js';
 import { validateFacelets } from './validate.js';
+import { STAGE_NAMES } from './solver.js';
 
 // Writes a whole cube down as a short line of text, and reads it back. The same text is saved in the
 // browser (so a reload never loses a cube) and put in shared links after the # (so a friend opens the same cube).
@@ -10,17 +11,21 @@ import { validateFacelets } from './validate.js';
 //   redo            undone moves that can be redone, most recently undone last
 //   scramble        the latest scramble's notation, or null
 //   solveMoveCount  the number of moves in the solve in progress, or null if there is none
+// and, in shared links only:
+//   solution        a solution to show, as solveCube returns it ({ stages, moves }), or null
 //
 // The text looks like a web address's query, and leaves out empty parts, e.g.
 //   v=1&moves=RU2F'&scramble=RU2F'
+// A solution is written as all its moves plus the number of moves in each stage: solution=…&stages=3.10.0.…
 // Moves are written without spaces, since every move starts with its face letter.
 
 const VERSION = '1';
 const FACELETS = /^[URFDLB]{54}$/;
 const MOVES = /^([URFDLB]['2]?)*$/;
 const COUNT = /^\d{1,6}$/;
+const STAGE_COUNTS = new RegExp(`^\\d{1,4}(\\.\\d{1,4}){${STAGE_NAMES.length - 1}}$`);
 
-export function encodeCube({ start, history, redo = [], scramble = null, solveMoveCount = null }) {
+export function encodeCube({ start, history, redo = [], scramble = null, solveMoveCount = null, solution = null }) {
     const parts = new URLSearchParams({ v: VERSION });
     if (start !== null) {
         parts.set('start', start);
@@ -36,6 +41,10 @@ export function encodeCube({ start, history, redo = [], scramble = null, solveMo
     }
     if (solveMoveCount !== null) {
         parts.set('solve', String(solveMoveCount));
+    }
+    if (solution !== null) {
+        parts.set('solution', compactMoves(solution.moves));
+        parts.set('stages', solution.stages.map(stage => stage.moves.length).join('.'));
     }
     return parts.toString();
 }
@@ -53,12 +62,14 @@ export function decodeCube(text) {
     const redo = parts.get('redo') ?? '';
     const scramble = parts.get('scramble');
     const solve = parts.get('solve');
+    const solution = decodeSolution(parts.get('solution'), parts.get('stages'));
 
     const isValid = (start === null || (FACELETS.test(start) && validateFacelets([...start]).valid))
         && MOVES.test(moves)
         && MOVES.test(redo)
         && (scramble === null || (scramble !== '' && MOVES.test(scramble)))
-        && (solve === null || COUNT.test(solve));
+        && (solve === null || COUNT.test(solve))
+        && solution !== undefined;
     if (!isValid) {
         return null;
     }
@@ -68,8 +79,34 @@ export function decodeCube(text) {
         history: expandMoves(moves),
         redo: expandMoves(redo),
         scramble: scramble === null ? null : formatMoves(expandMoves(scramble)),
-        solveMoveCount: solve === null ? null : Number(solve)
+        solveMoveCount: solve === null ? null : Number(solve),
+        solution
     };
+}
+
+// The solution, null if there is none, or undefined if it's damaged.
+// Whether it actually solves the cube is checked when it's opened (see share.js).
+function decodeSolution(moves, counts) {
+    if (moves === null && counts === null) {
+        return null;
+    }
+    if (moves === null || counts === null || !MOVES.test(moves) || !STAGE_COUNTS.test(counts)) {
+        return undefined;
+    }
+
+    const all = expandMoves(moves);
+    const lengths = counts.split('.').map(Number);
+    if (lengths.reduce((sum, length) => sum + length, 0) !== all.length) {
+        return undefined;
+    }
+
+    let start = 0;
+    const stages = lengths.map((length, index) => {
+        const stage = { name: STAGE_NAMES[index], moves: all.slice(start, start + length) };
+        start += length;
+        return stage;
+    });
+    return { stages, moves: all };
 }
 
 function compactMoves(moves) {

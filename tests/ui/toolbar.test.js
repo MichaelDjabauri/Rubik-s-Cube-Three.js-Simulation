@@ -73,8 +73,8 @@ describe('createToolbar', () => {
         expect(document.querySelector('#scramble').hidden).toBe(true);
         expect(document.querySelector('#solved').hidden).toBe(false);
         expect(document.querySelector('#solved').disabled).toBe(false);
-        expect(document.querySelector('#reset').title).toBe('Rewind every move back to your copied cube');
-        expect(document.querySelector('#cube-info').textContent).toBe('Your copied cube. Reset goes back to it.');
+        expect(document.querySelector('#reset').title).toBe('Rewind every move back to your colored-in cube');
+        expect(document.querySelector('#cube-info').textContent).toBe('Your colored-in cube. Reset goes back to it.');
     });
 
     it('goes back to the normal buttons after leaving the copied cube', () => {

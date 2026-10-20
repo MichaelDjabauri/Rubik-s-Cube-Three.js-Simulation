@@ -2,7 +2,8 @@
 // This file runs in a simulated web page (happy-dom), because sharing uses a real button.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { shareLink, setUpShareButton, openLinkedCube } from '../../src/ui/share.js';
+import { shareLink, solutionLink, createSharer, setUpShareButton, openLinkedCube } from '../../src/ui/share.js';
+import { solveCube } from '../../src/cube/solver.js';
 import Cube from '../../src/cube/Cube.js';
 import CubeState from '../../src/cube/CubeState.js';
 import { parseMoves } from '../../src/cube/notation.js';
@@ -44,17 +45,16 @@ describe('shareLink', () => {
     });
 });
 
-describe('setUpShareButton', () => {
+describe('createSharer', () => {
     function setUp({ navigator, isTouchScreen = () => false }) {
         const shownLinks = [];
-        const button = setUpShareButton({
-            getLink: () => 'https://example.com/#v=1',
+        const sharer = createSharer({
             showMessage: text => messages.push(text),
             navigator,
             isTouchScreen,
             showLink: link => shownLinks.push(link)
         });
-        return { ...button, shownLinks };
+        return { share: () => sharer('https://example.com/#v=1'), shownLinks };
     }
 
     it('copies the link on a computer and says so', async () => {
@@ -110,25 +110,30 @@ describe('setUpShareButton', () => {
         expect(messages).toEqual([]);
     });
 
-    it('shares when the button is clicked', async () => {
-        const writeText = vi.fn(async () => {});
-        setUp({ navigator: { clipboard: { writeText } } });
-        document.querySelector('#share-button').click();
-        await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
-    });
 
     it("uses the browser's own share sheet, clipboard and prompt by default", async () => {
         const prompt = vi.fn(() => null);
         window.prompt = prompt; // The simulated page has no prompt of its own
-        const { share } = setUpShareButton({ getLink: () => 'link', showMessage: () => {} });
+        const share = createSharer({ showMessage: () => {} });
         Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: undefined });
         try {
-            await share();
+            await share('link');
             expect(prompt).toHaveBeenCalledWith('Copy this link to share your cube:', 'link');
         } finally {
             delete window.navigator.clipboard;
             delete window.prompt;
         }
+    });
+});
+
+describe('setUpShareButton', () => {
+    it('shares the current link when the button is clicked', () => {
+        const share = vi.fn();
+        let link = 'first';
+        setUpShareButton({ getLink: () => link, share });
+        link = 'second';
+        document.querySelector('#share-button').click();
+        expect(share).toHaveBeenCalledWith('second');
     });
 });
 
@@ -143,7 +148,7 @@ describe('openLinkedCube', () => {
     it('does nothing when the address has no cube', () => {
         const cube = new Cube();
         const { opened, history } = open(cube, '');
-        expect(opened).toBe(false);
+        expect(opened).toBeNull();
         expect(history.replaceState).not.toHaveBeenCalled();
     });
 
@@ -156,7 +161,7 @@ describe('openLinkedCube', () => {
         const beforeOpen = vi.fn();
         const { opened, history } = open(cube, hashOf(shareLink(friend, PAGE)), { beforeOpen });
 
-        expect(opened).toBe(true);
+        expect(opened).toEqual({ solution: null });
         expect(beforeOpen).toHaveBeenCalled();
         expect(history.replaceState).toHaveBeenCalledWith(null, '', '/cube/');
         expect(cube.state.toString()).toBe(friend.state.toString());
@@ -186,7 +191,7 @@ describe('openLinkedCube', () => {
         const confirm = vi.fn(() => false);
         const { opened } = open(cube, hashOf(shareLink(friend, PAGE)), { confirm });
         expect(confirm).toHaveBeenCalled();
-        expect(opened).toBe(false);
+        expect(opened).toBeNull();
         expect(cube.history).toEqual(parseMoves('R'));
     });
 
@@ -195,11 +200,11 @@ describe('openLinkedCube', () => {
         friend.move('F');
         const confirm = vi.fn(() => false);
 
-        expect(open(new Cube(), hashOf(shareLink(friend, PAGE)), { confirm }).opened).toBe(true);
+        expect(open(new Cube(), hashOf(shareLink(friend, PAGE)), { confirm }).opened).not.toBeNull();
 
         const same = new Cube();
         same.move('F');
-        expect(open(same, hashOf(shareLink(friend, PAGE)), { confirm }).opened).toBe(true);
+        expect(open(same, hashOf(shareLink(friend, PAGE)), { confirm }).opened).not.toBeNull();
         expect(confirm).not.toHaveBeenCalled();
     });
 
@@ -207,7 +212,7 @@ describe('openLinkedCube', () => {
         const cube = new Cube();
         cube.move('R');
         const { opened, history } = open(cube, '#v=1&moves=RXQ');
-        expect(opened).toBe(false);
+        expect(opened).toBeNull();
         expect(history.replaceState).toHaveBeenCalled();
         expect(messages).toHaveLength(1);
         expect(cube.history).toEqual(parseMoves('R'));
@@ -216,17 +221,50 @@ describe('openLinkedCube', () => {
     it("uses the page's own address, history and confirm by default", () => {
         window.history.replaceState(null, '', '/#v=1&moves=R');
         const cube = new Cube();
-        expect(openLinkedCube({ cube, showMessage: () => {} })).toBe(true);
+        expect(openLinkedCube({ cube, showMessage: () => {} })).toEqual({ solution: null });
         expect(window.location.hash).toBe('');
 
         const confirm = vi.fn(() => false);
         window.confirm = confirm; // The simulated page has no confirm of its own
         try {
             window.history.replaceState(null, '', '/#v=1&moves=F');
-            expect(openLinkedCube({ cube, showMessage: () => {} })).toBe(false);
+            expect(openLinkedCube({ cube, showMessage: () => {} })).toBeNull();
             expect(confirm).toHaveBeenCalled();
         } finally {
             delete window.confirm;
         }
+    });
+
+    it('opens a cube with its solution, ready to play', () => {
+        const friend = new Cube();
+        friend.move("R U F'");
+        const solution = solveCube(friend.state.facelets);
+
+        const cube = new Cube();
+        const { opened } = open(cube, hashOf(solutionLink(friend.snapshot(), solution, PAGE)));
+        expect(opened.solution.moves).toEqual(solution.moves);
+        expect(opened.solution.stages.map(stage => stage.moves)).toEqual(solution.stages.map(stage => stage.moves));
+        expect(cube.state.toString()).toBe(friend.state.toString());
+    });
+
+    it("opens only the cube when its solution doesn't solve it", () => {
+        const friend = new Cube();
+        friend.move('R');
+        const wrong = { stages: solveCube(friend.state.facelets).stages.map(stage => ({ ...stage, moves: [] })), moves: [] };
+        wrong.stages[0].moves = [{ face: 'U', turns: 1 }];
+        wrong.moves = [{ face: 'U', turns: 1 }];
+
+        const cube = new Cube();
+        const { opened } = open(cube, hashOf(solutionLink(friend.snapshot(), wrong, PAGE)));
+        expect(opened).toEqual({ solution: null });
+        expect(messages).toHaveLength(1);
+        expect(cube.history).toEqual(parseMoves('R'));
+    });
+
+    it("uses the page's own address for a solution link by default", () => {
+        const cube = new Cube();
+        cube.move('R');
+        const link = solutionLink(cube.snapshot(), solveCube(cube.state.facelets));
+        expect(link.startsWith(`${window.location.origin}${window.location.pathname}#v=1&moves=R&solution=`)).toBe(true);
     });
 });

@@ -407,4 +407,52 @@ describe('the app', () => {
             delete window.navigator.clipboard;
         }
     });
+
+    it('solves a scramble with the Solve button and the auto-solve, ending with a celebration', () => {
+        $('#scramble').click();
+        $('#solve').click();
+        expect(document.body.classList.contains('solving')).toBe(true);
+        expect($('.player-stage').textContent).toMatch(/^Stage 1 of 7/);
+
+        // Keys step through the solution now, instead of turning faces
+        pressKey('ArrowRight');
+        expect($('.player-count').textContent).toMatch(/^Move 2 of/);
+        pressKey('r');
+        expect($('.player-count').textContent).toMatch(/^Move 2 of/);
+
+        [...document.querySelectorAll('#player button')].find(button => button.textContent === 'Auto-solve').click();
+        runFrames(30);
+        expect(document.body.classList.contains('solving')).toBe(false);
+        expect($('#solved-message strong').textContent).toBe('Solved!');
+        expect($('#solve').disabled).toBe(true); // Nothing left to solve
+    });
+
+    it('shares a solution from the player, and the link opens the player for the same cube', async () => {
+        let copied = null;
+        Object.defineProperty(window.navigator, 'clipboard', {
+            configurable: true,
+            value: { writeText: async text => (copied = text) }
+        });
+        try {
+            pressKey('r');
+            pressKey('u');
+            $('#solve').click();
+            [...document.querySelectorAll('#player button')].find(button => button.textContent === 'Share').click();
+            await vi.waitFor(() => expect(copied).toContain('solution='));
+
+            await startApp({ link: `#${copied.split('#')[1]}` });
+            expect(document.body.classList.contains('solving')).toBe(true);
+            expect($('.player-count').textContent).toMatch(/^Move 1 of /);
+
+            // Opening another link closes the player first
+            window.confirm = () => true; // The simulated page has no confirm of its own
+            window.history.replaceState(null, '', '/#v=1&moves=F&scramble=F');
+            window.dispatchEvent(new Event('hashchange'));
+            expect(document.body.classList.contains('solving')).toBe(false);
+            expect($('#cube-info').textContent).toBe('Scramble: F');
+        } finally {
+            delete window.navigator.clipboard;
+            delete window.confirm;
+        }
+    });
 });

@@ -108,4 +108,16 @@ describe('setUpKeyboard', () => {
         expect(help.close).toHaveBeenCalledOnce();
         expect(editor.close).not.toHaveBeenCalled();
     });
+
+    it("gives an open overlay's own keys to it, and keeps the browser from also handling them", () => {
+        const target = new EventTarget();
+        const player = { isOpen: true, close: vi.fn(), handleKey: vi.fn(event => event.key === 'ArrowRight') };
+        const runCommand = vi.fn();
+        setUpKeyboard({ overlays: [player], runCommand, target });
+
+        expect(press(target, { key: 'ArrowRight' }).defaultPrevented).toBe(true);
+        expect(press(target, { key: 'r' }).defaultPrevented).toBe(false);
+        expect(runCommand).not.toHaveBeenCalled();
+        expect(player.handleKey).toHaveBeenCalledTimes(2);
+    });
 });

@@ -45,6 +45,14 @@
             --complete-step: #3fbf5f;
             --swatch-border: rgba(255, 255, 255, 0.3);
             --swatch-selected: #ffffff;
+            /* The colored bands of the solution player's slider, one per stage */
+            --stage-1: #5aa9ff;
+            --stage-2: #57c785;
+            --stage-3: #f5c542;
+            --stage-4: #f28b50;
+            --stage-5: #c77dff;
+            --stage-6: #ff6b8b;
+            --stage-7: #4dd0e1;
         }
 
         :root[data-theme="light"] {
@@ -159,7 +167,7 @@
             padding: 8px 0;
         }
 
-        /* A line of info at the top of the screen: the latest scramble, or that a copied cube is loaded */
+        /* A line of info at the top of the screen: the latest scramble, or that a colored-in cube is loaded */
         #cube-info {
             position: fixed;
             top: 24px;
@@ -358,20 +366,16 @@
             }
         }
 
-        /* While the cube editor is open, the normal controls make way for it */
-        body.editing .toolbar,
-        body.editing #move-buttons,
-        body.editing #cube-info,
-        body.editing #help-button,
-        body.editing #theme-button,
-        body.editing #share-button,
-        body.editing #hint {
+        /* While the cube editor or the solution player is open, the normal controls make way for it */
+        body:is(.editing, .solving) :is(.toolbar, #move-buttons, #cube-info, #help-button, #theme-button, #share-button, #hint) {
             display: none;
         }
 
-        /* The "Copy my cube" editor: instructions at the top; status, face tabs, palette and actions at the bottom */
+        /* The "Color my cube" editor and the solution player: a panel at the top and one at the bottom */
         .editor-top,
-        .editor-bottom {
+        .editor-bottom,
+        .player-top,
+        .player-bottom {
             position: fixed;
             left: 50%;
             transform: translateX(-50%);
@@ -381,7 +385,8 @@
             text-align: center;
         }
 
-        .editor-top {
+        .editor-top,
+        .player-top {
             top: calc(20px + env(safe-area-inset-top));
         }
 
@@ -391,7 +396,8 @@
             font-weight: 600;
         }
 
-        .editor-bottom {
+        .editor-bottom,
+        .player-bottom {
             bottom: calc(24px + env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
@@ -484,8 +490,88 @@
             color: var(--too-many);
         }
 
-        .editor-actions button.primary:not(:disabled) {
+        .editor-actions button.primary:not(:disabled),
+        .player-actions button.primary:not(:disabled) {
             background: #8ee59a;
+        }
+
+        /* The solution player: the stage, then the next move in big letters and in words */
+        .player-top p {
+            margin: 0;
+        }
+
+        .player-stage {
+            font-size: 15px;
+            opacity: 0.75;
+        }
+
+        .player-notation {
+            font: 700 44px/1.2 ui-monospace, Menlo, monospace;
+        }
+
+        .player-words {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .player-progress,
+        .player-controls,
+        .player-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .player-progress {
+            width: min(520px, 100%);
+            gap: 12px;
+        }
+
+        .player-count {
+            min-width: 7.5em;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* A slider with a colored band for each stage of the solution (set from JS as --stages) */
+        .player-slider {
+            flex: 1;
+            height: 10px;
+            margin: 0;
+            border-radius: 5px;
+            background: var(--stages);
+            appearance: none;
+            -webkit-appearance: none;
+            touch-action: none;
+            cursor: pointer;
+        }
+
+        .player-slider::-webkit-slider-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--button);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+            -webkit-appearance: none;
+        }
+
+        .player-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 50%;
+            background: var(--button);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .player-slider:disabled {
+            cursor: default;
+        }
+
+        .player-controls button,
+        .player-actions button {
+            font-size: 16px;
+            padding: 10px 18px;
         }
 
         /*
@@ -527,15 +613,46 @@
             }
 
             .editor-top,
-            .editor-bottom {
+            .editor-bottom,
+            .player-top,
+            .player-bottom {
                 left: 16px;
                 right: 16px;
                 width: auto;
                 transform: none;
             }
 
-            .editor-top {
+            .editor-top,
+            .player-top {
                 top: calc(12px + env(safe-area-inset-top));
+            }
+
+            .player-notation {
+                font-size: 34px;
+            }
+
+            .player-words {
+                font-size: 15px;
+            }
+
+            .player-bottom {
+                bottom: calc(16px + env(safe-area-inset-bottom));
+                gap: 10px;
+                font-size: 14px;
+            }
+
+            .player-progress,
+            .player-controls,
+            .player-actions {
+                width: 100%;
+            }
+
+            .player-controls button,
+            .player-actions button {
+                flex: 1;
+                min-height: 44px;
+                padding: 0 2px;
+                font-size: 14px;
             }
 
             #solved-message strong {
@@ -621,7 +738,9 @@
         @media (max-width: 360px) {
             .toolbar button,
             .editor-steps button,
-            .editor-actions button {
+            .editor-actions button,
+            .player-controls button,
+            .player-actions button {
                 font-size: 11px;
             }
         }
@@ -639,21 +758,27 @@
                 left: calc(16px + 2 * (44px + 12px) + env(safe-area-inset-left));
             }
 
+            /* Between the toolbar and the face buttons */
             #hint {
                 bottom: calc(12px + env(safe-area-inset-bottom));
+                left: calc(190px + env(safe-area-inset-left));
+                right: calc(140px + env(safe-area-inset-right));
+                width: auto;
+                transform: none;
             }
 
+            /* Under the corner buttons */
             .toolbar {
                 left: calc(16px + env(safe-area-inset-left));
-                top: 50%;
+                top: calc(72px + env(safe-area-inset-top));
                 bottom: auto;
-                transform: translateY(-50%);
+                transform: none;
                 flex-direction: column;
-                gap: 8px;
+                gap: 6px;
             }
 
             .toolbar button {
-                min-height: 44px;
+                min-height: 40px;
                 padding: 0 16px;
                 font-size: 15px;
             }
@@ -678,9 +803,35 @@
                 font-size: 14px;
             }
 
-            /* The editor squeezed onto a short screen */
-            .editor-top {
+            /* The editor and the solution player squeezed onto a short screen */
+            .editor-top,
+            .player-top {
                 top: calc(8px + env(safe-area-inset-top));
+            }
+
+            .player-stage {
+                font-size: 13px;
+            }
+
+            .player-notation {
+                font-size: 26px;
+            }
+
+            .player-words {
+                font-size: 14px;
+            }
+
+            .player-bottom {
+                bottom: calc(8px + env(safe-area-inset-bottom));
+                gap: 6px;
+                font-size: 13px;
+            }
+
+            .player-controls button,
+            .player-actions button {
+                min-height: 36px;
+                padding: 0 12px;
+                font-size: 13px;
             }
 
             .editor-instruction {
@@ -766,7 +917,8 @@
                 <li><b>Scramble</b> mixes up the cube. Solve it yourself for a little celebration.</li>
                 <li><b>Undo</b> (<kbd>Ctrl</kbd> <kbd>Z</kbd>) and <b>Redo</b> (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd>) step through your moves. On a Mac, <kbd>Cmd</kbd> works too.</li>
                 <li><b>Reset</b> rewinds every move back to the start.</li>
-                <li><b>Copy my cube</b> lets you paint your real cube's colors into the app.</li>
+                <li><b>Solve</b> shows how to solve the cube with the beginner method, starting with the white cross: one move at a time, with the face to turn glowing. Step with <b>Back</b> and <b>Next</b> (or <kbd>←</kbd> <kbd>→</kbd>), play and pause with <kbd>Space</kbd>, or drag the slider. <b>Auto-solve</b> plays the rest as a show, and <b>Share</b> sends the cube with its solution.</li>
+                <li><b>Color my cube</b> lets you paint your real cube's colors into the app.</li>
             </ul>
 
             <h3>Notation</h3>
@@ -777,18 +929,22 @@
     </div>
     <div id="move-buttons"></div>
     <div class="toolbar">
-        <button id="scramble" title="Mix up the cube with 25 random moves">Scramble</button>
-        <button id="solved" title="Leave your copied cube and start again from a solved cube" hidden>
+        <button id="scramble" title="Mix up the cube with 25 random moves">
+            <span class="label-long">Scramble</span><span class="label-short">Mix</span>
+        </button>
+        <button id="solved" title="Leave your colored-in cube and start again from a solved cube" hidden>
             <span class="label-long">Solved cube</span><span class="label-short">Solved</span>
         </button>
         <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
         <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
         <button id="reset" title="Rewind every move back to the solved cube">Reset</button>
+        <button id="solve" title="Show how to solve the cube, step by step">Solve</button>
         <button id="edit" title="Paint your own cube's colors onto the 3D cube">
-            <span class="label-long">Copy my cube</span><span class="label-short">My cube</span>
+            <span class="label-long">Color my cube</span><span class="label-short">Color</span>
         </button>
     </div>
     <div id="editor" hidden></div>
+    <div id="player" hidden></div>
     <script type="module" src="./src/main.js"></script>
 </body>
 

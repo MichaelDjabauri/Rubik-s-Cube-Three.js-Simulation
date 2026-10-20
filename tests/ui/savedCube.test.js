@@ -31,7 +31,7 @@ describe('createCubeMemory', () => {
 
         memory.saveCube(cube);
         expect(storage.values.get('rubiks-cube.cube')).toBe('v=1&moves=RU%27');
-        expect(memory.loadCube()).toEqual(cube.snapshot());
+        expect(memory.loadCube()).toEqual({ ...cube.snapshot(), solution: null });
     });
 
     it('loads nothing when nothing was saved, or the saved text is damaged', () => {

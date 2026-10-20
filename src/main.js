@@ -20,7 +20,8 @@ import { createHelp } from './ui/help.js';
 import { showFirstVisitHint } from './ui/firstVisitHint.js';
 import { setUpTheme } from './ui/theme.js';
 import { createCubeMemory } from './ui/savedCube.js';
-import { setUpShareButton, shareLink, openLinkedCube } from './ui/share.js';
+import { createSharer, setUpShareButton, shareLink, solutionLink, openLinkedCube } from './ui/share.js';
+import { createSolutionPlayer } from './ui/solutionPlayer.js';
 import { createToast } from './ui/toast.js';
 
 // This file sets everything up first and starts it at the very end, so nothing runs before it exists.
@@ -56,7 +57,8 @@ const celebration = createCelebration({
     reduceMotion: () => reducedMotion.matches
 });
 const solvedMessage = createSolvedMessage();
-cube.onSolved = moveCount => celebration.play(() => solvedMessage.show(moveCount));
+const celebrate = moveCount => celebration.play(() => solvedMessage.show(moveCount));
+cube.onSolved = celebrate;
 
 // Finds the sticker under the pointer, for turning layers and for painting in the editor
 const picker = createStickerPicker({ camera, canvas, cubeModel: cube.model });
@@ -78,6 +80,10 @@ const runCommand = createCommandRunner({
         editor.open();
     },
     openHelp: () => help.open(),
+    openSolver: () => {
+        celebration.stop();
+        player.open();
+    },
     afterEach: cubeChanged
 });
 
@@ -85,7 +91,7 @@ const runCommand = createCommandRunner({
 const toolbar = createToolbar(runCommand);
 createMoveButtons(runCommand, notation => cube.model.highlightFace(notation));
 
-// The "Copy my cube" editor
+// The "Color my cube" editor
 const editor = createEditor({
     cube,
     picker,
@@ -105,27 +111,51 @@ const help = createHelp();
 const toast = createToast();
 
 // Sharing a cube by link, and opening a cube from a link (the part of the address after the #)
-setUpShareButton({ getLink: () => shareLink(cube), showMessage: toast.show });
+const share = createSharer({ showMessage: toast.show });
+setUpShareButton({ getLink: () => shareLink(cube), share });
+
+// The solution player: the app's solution, step by step, or as an auto-solve show
+const player = createSolutionPlayer({
+    cube,
+    controls,
+    reduceMotion: () => reducedMotion.matches,
+    onFinish: celebrate,
+    onChange: cubeChanged,
+    onShare: (snapshot, solution) => share(solutionLink(snapshot, solution)),
+    showMessage: toast.show,
+    onLayoutChange: () => fitCubeOnScreen(),
+    onClose: cubeChanged
+});
 
 function openCubeFromLink() {
     const opened = openLinkedCube({
         cube,
         showMessage: toast.show,
         beforeOpen: () => {
-            if (editor.isOpen) {
-                editor.close();
+            for (const overlay of [editor, player]) {
+                if (overlay.isOpen) {
+                    overlay.close();
+                }
             }
             celebration.stop();
         }
     });
     if (opened) {
         cubeChanged();
+        // A shared solution opens in the player, ready to play
+        if (opened.solution) {
+            player.open(opened.solution);
+        }
     }
 }
 
-// Keys, and dragging stickers to turn layers. Both are switched off while the editor or help is open.
-setUpKeyboard({ overlays: [editor, help], runCommand });
-setUpMouseTurns({ camera, canvas, cubeModel: cube.model, picker, controls, onCommand: runCommand, isEnabled: () => !editor.isOpen });
+// Keys, and dragging stickers to turn layers. Both are switched off while the editor, help or the
+// solution player is open (the player has its own keys).
+setUpKeyboard({ overlays: [editor, help, player], runCommand });
+setUpMouseTurns({
+    camera, canvas, cubeModel: cube.model, picker, controls, onCommand: runCommand,
+    isEnabled: () => !editor.isOpen && !player.isOpen
+});
 
 // Double-click or double-tap to swing the camera back to its starting view (not while painting)
 onDoubleTap(canvas, () => {
@@ -138,7 +168,7 @@ onDoubleTap(canvas, () => {
 // After a while without input, the camera slowly circles the cube
 const idleShowcase = createIdleShowcase({
     controls,
-    canRun: () => !editor.isOpen && !celebration.isPlaying && !reducedMotion.matches
+    canRun: () => !editor.isOpen && !player.isOpen && !celebration.isPlaying && !reducedMotion.matches
 });
 
 // Fits the whole cube on screen, into the space the buttons and text leave free (see the CSS in index.html).
@@ -169,11 +199,13 @@ function fitCubeOnScreen() {
 
 // The part of the screen, from the top, that the cube can use: { freeTop, freeBottom } in pixels
 function freeSpace() {
-    if (editor.isOpen) {
-        return {
-            freeTop: document.querySelector('.editor-top').getBoundingClientRect().bottom,
-            freeBottom: document.querySelector('.editor-bottom').getBoundingClientRect().top
-        };
+    for (const [overlay, name] of [[editor, 'editor'], [player, 'player']]) {
+        if (overlay.isOpen) {
+            return {
+                freeTop: document.querySelector(`.${name}-top`).getBoundingClientRect().bottom,
+                freeBottom: document.querySelector(`.${name}-bottom`).getBoundingClientRect().top
+            };
+        }
     }
     if (uprightPhoneLayout.matches) {
         return { freeBottom: document.querySelector('#move-buttons').getBoundingClientRect().top };
@@ -192,6 +224,7 @@ function animate(timestamp) {
     const deltaSeconds = Math.max(timer.getDelta(), 0);
     cube.update(deltaSeconds);
     idleShowcase.update(deltaSeconds);
+    player.update(deltaSeconds); // After the idle showcase, so the auto-solve's circling camera wins
     controls.update(deltaSeconds);
     cameraGuide.update(deltaSeconds); // After controls.update(), so a guided camera move wins
     celebration.update(deltaSeconds);

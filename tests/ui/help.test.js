@@ -49,7 +49,7 @@ describe('createHelp', () => {
 
     it('explains every kind of control', () => {
         const text = overlay().textContent;
-        for (const topic of ['Drag a sticker', 'Shift', 'Double-click or double-tap', 'Scramble', 'Undo', 'Redo', 'Reset', 'Copy my cube', 'Notation']) {
+        for (const topic of ['Drag a sticker', 'Shift', 'Double-click or double-tap', 'Scramble', 'Undo', 'Redo', 'Reset', 'Color my cube', 'Notation']) {
             expect(text, topic).toContain(topic);
         }
     });

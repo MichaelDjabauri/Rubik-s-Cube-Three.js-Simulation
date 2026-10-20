@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { encodeCube, decodeCube } from '../../src/cube/cubeCode.js';
 import CubeState, { SOLVED } from '../../src/cube/CubeState.js';
 import { parseMoves } from '../../src/cube/notation.js';
+import { STAGE_NAMES } from '../../src/cube/solver.js';
 
 const A_REAL_CUBE = new CubeState().applyMoves(parseMoves("R U2 F' L D B2 R' U")).toString();
 
 function snapshot(fields = {}) {
-    return { start: null, history: [], redo: [], scramble: null, solveMoveCount: null, ...fields };
+    return { start: null, history: [], redo: [], scramble: null, solveMoveCount: null, solution: null, ...fields };
 }
 
 describe('encodeCube and decodeCube', () => {
@@ -66,5 +67,31 @@ describe('encodeCube and decodeCube', () => {
 
     it('ignore parts it does not know, e.g. added by a messaging app', () => {
         expect(decodeCube('v=1&moves=R&utm_source=chat')).toEqual(snapshot({ history: parseMoves('R') }));
+    });
+});
+
+describe('a solution in the cube text', () => {
+    const solution = {
+        stages: STAGE_NAMES.map((name, index) => ({ name, moves: index === 0 ? parseMoves("R U'") : index === 3 ? parseMoves('F2') : [] })),
+        moves: parseMoves("R U' F2")
+    };
+
+    it('is written as all its moves plus the number of moves per stage, and read back', () => {
+        const text = encodeCube(snapshot({ solution }));
+        expect(text).toBe('v=1&solution=RU%27F2&stages=2.0.0.1.0.0.0');
+        expect(decodeCube(text)).toEqual(snapshot({ solution }));
+    });
+
+    it('is rejected when damaged', () => {
+        const broken = [
+            'v=1&solution=RU',                    // No stages
+            'v=1&stages=2.0.0.0.0.0.0',           // No moves
+            'v=1&solution=RX&stages=2.0.0.0.0.0.0',
+            'v=1&solution=RU&stages=2.0.0',       // Too few stages
+            'v=1&solution=RU&stages=3.0.0.0.0.0.0' // Counts don't add up
+        ];
+        for (const text of broken) {
+            expect(decodeCube(text), text).toBeNull();
+        }
     });
 });
