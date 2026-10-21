@@ -427,6 +427,128 @@ describe('the app', () => {
         expect($('#solve').disabled).toBe(true); // Nothing left to solve
     });
 
+    it('shows every move in the history strip, and travels back and forward when a chip is tapped', () => {
+        expect($('#history-strip').classList.contains('empty')).toBe(true);
+        pressKey('r');
+        pressKey('u');
+        pressKey('f');
+        const chips = () => [...document.querySelectorAll('#history-strip .chip')];
+        expect(chips().map(chip => chip.textContent)).toEqual(['Start', 'R', 'U', 'F']);
+        expect($('#history-strip .current').textContent).toBe('F');
+
+        chips()[1].click();
+        expect($('#history-strip .current').textContent).toBe('R');
+        expect($('#redo').disabled).toBe(false);
+        chips()[3].click();
+        expect($('#history-strip .current').textContent).toBe('F');
+        chips()[0].click();
+        expect($('#undo').disabled).toBe(true);
+        runFrames(1.5);
+        expect($('#solved-message').textContent).toBe(''); // Travelling back to solved isn't a solve
+    });
+
+    it('plays a pattern from the gallery one move at a time, with the history strip following along', () => {
+        $('#gallery-button').click();
+        expect($('#gallery').hidden).toBe(false);
+        [...document.querySelectorAll('.pattern-card')].find(card => card.textContent.includes('Checkerboard')).click();
+        expect($('#gallery').hidden).toBe(true);
+        expect($('#cube-info').textContent).toBe('Pattern: Checkerboard');
+
+        runFrames(0.5);
+        const moves = () => [...document.querySelectorAll('#history-strip .chip:not(.start)')].map(chip => chip.textContent);
+        expect(moves().length).toBeGreaterThan(0);
+        expect(moves().length).toBeLessThan(6);
+        expect($('#history-strip .current').textContent).toBe(moves().at(-1));
+
+        runFrames(3);
+        expect(moves()).toEqual(['R2', 'L2', 'U2', 'D2', 'F2', 'B2']);
+        expect($('#history-strip .current').textContent).toBe('B2');
+    });
+
+    it('finishes a pattern that is still playing before the next move, and remembers it', async () => {
+        pressKey('p');
+        expect($('#gallery').hidden).toBe(false);
+        [...document.querySelectorAll('.pattern-card')].find(card => card.textContent.includes('Superflip')).click();
+        runFrames(0.3);
+        pressKey('r');
+        expect(document.querySelectorAll('#history-strip .chip:not(.start)')).toHaveLength(21);
+        expect($('#history-strip .current').textContent).toBe('R');
+
+        await startApp({ reload: true });
+        expect($('#cube-info').textContent).toBe('Pattern: Superflip');
+        expect(document.querySelectorAll('#history-strip .chip:not(.start)')).toHaveLength(21);
+    });
+
+    it('repeats R U until the cube is solved again, counting the repeats, then celebrates', () => {
+        pressKey('p');
+        [...document.querySelectorAll('#gallery button')].find(button => button.textContent === 'R U').click();
+        expect(document.body.classList.contains('repeating')).toBe(true);
+        expect($('.repeat-count').textContent).toBe('Repeat 1');
+
+        // Keys don't turn the cube while it runs
+        pressKey('f');
+        expect($('#undo').disabled).toBe(true);
+
+        runFrames(2);
+        expect(Number($('.repeat-count').textContent.replace('Repeat ', ''))).toBeGreaterThan(1);
+        runFrames(10);
+        expect(document.body.classList.contains('repeating')).toBe(false);
+        expect($('#solved-message strong').textContent).toBe('105 repeats');
+        expect($('#solved-message span').textContent).toBe('of R U to get back to solved');
+        expect($('#undo').disabled).toBe(true); // The repeats never went into the history
+    });
+
+    it('stops the repeat show with Escape, and repeats a typed sequence', () => {
+        pressKey('p');
+        $('.repeat-form input').value = "R U'";
+        $('.repeat-form button').click();
+        expect($('.repeat-sequence').textContent).toBe("R U'");
+        runFrames(1);
+        pressKey('Escape');
+        expect(document.body.classList.contains('repeating')).toBe(false);
+        expect($('#repeat-show').hidden).toBe(true);
+        runFrames(1);
+        expect($('#solved-message').textContent).toBe(''); // Stopped, so no celebration
+    });
+
+    it('asks before a pattern replaces moves, and opening a link stops a pattern or a repeat show first', () => {
+        const questions = [];
+        window.confirm = (text) => { // The simulated page has no confirm of its own
+            questions.push(text);
+            return true;
+        };
+        try {
+            pressKey('r');
+            pressKey('p');
+            [...document.querySelectorAll('.pattern-card')].find(card => card.textContent.includes('Superflip')).click();
+            runFrames(0.3);
+            window.history.replaceState(null, '', '/#v=1&scramble=F&moves=F');
+            window.dispatchEvent(new Event('hashchange'));
+            runFrames(2);
+            expect(questions[0]).toBe('Play Superflip? It replaces the cube you have now.');
+            expect($('#cube-info').textContent).toBe('Scramble: F');
+            expect(document.querySelectorAll('#history-strip .chip:not(.start)')).toHaveLength(1);
+
+            pressKey('p');
+            [...document.querySelectorAll('#gallery button')].find(button => button.textContent === 'R U').click();
+            runFrames(0.5);
+            window.history.replaceState(null, '', '/#v=1&scramble=B&moves=B');
+            window.dispatchEvent(new Event('hashchange'));
+            expect(document.body.classList.contains('repeating')).toBe(false);
+            expect($('#cube-info').textContent).toBe('Scramble: B');
+        } finally {
+            delete window.confirm;
+        }
+    });
+
+    it('fits the cube above the history strip on an upright phone, while a repeat show runs too', async () => {
+        await startApp({ width: 390, height: 844 });
+        pressKey('p');
+        [...document.querySelectorAll('#gallery button')].find(button => button.textContent === "R U R' U'").click();
+        runFrames(6);
+        expect($('#solved-message strong').textContent).toBe('6 repeats');
+    });
+
     it('shares a solution from the player, and the link opens the player for the same cube', async () => {
         let copied = null;
         Object.defineProperty(window.navigator, 'clipboard', {

@@ -7,7 +7,7 @@ import { STAGE_NAMES } from '../../src/cube/solver.js';
 const A_REAL_CUBE = new CubeState().applyMoves(parseMoves("R U2 F' L D B2 R' U")).toString();
 
 function snapshot(fields = {}) {
-    return { start: null, history: [], redo: [], scramble: null, solveMoveCount: null, solution: null, ...fields };
+    return { start: null, history: [], redo: [], scramble: null, pattern: null, solveMoveCount: null, solution: null, ...fields };
 }
 
 describe('encodeCube and decodeCube', () => {
@@ -32,6 +32,14 @@ describe('encodeCube and decodeCube', () => {
 
     it('can leave out the redo moves, scramble and solve count', () => {
         expect(encodeCube({ start: null, history: parseMoves('R') })).toBe('v=1&moves=R');
+    });
+
+    it('keep the pattern played, and leave out one this version does not know', () => {
+        const cube = snapshot({ history: parseMoves('R2 L2 U2 D2 F2 B2'), pattern: 'checkerboard' });
+        const text = encodeCube(cube);
+        expect(text).toBe('v=1&moves=R2L2U2D2F2B2&pattern=checkerboard');
+        expect(decodeCube(text)).toEqual(cube);
+        expect(decodeCube('v=1&moves=R&pattern=nonsense')).toEqual(snapshot({ history: parseMoves('R') }));
     });
 
     it('accept a solve count of 0', () => {

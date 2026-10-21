@@ -20,8 +20,8 @@ beforeEach(() => {
     toolbar = createToolbar(command => commands.push(command.type));
 });
 
-function cubeLike({ canUndo = false, canRedo = false, lastScramble = null, startsFromCopy = false } = {}) {
-    return { canUndo, canRedo, lastScramble, startsFromCopy };
+function cubeLike({ canUndo = false, canRedo = false, lastScramble = null, lastPattern = null, startsFromCopy = false } = {}) {
+    return { canUndo, canRedo, lastScramble, lastPattern, startsFromCopy };
 }
 
 describe('createToolbar', () => {
@@ -59,6 +59,11 @@ describe('createToolbar', () => {
 
         toolbar.update(cubeLike());
         expect(document.querySelector('#cube-info').textContent).toBe('');
+    });
+
+    it('shows the name of the pattern played', () => {
+        toolbar.update(cubeLike({ lastPattern: 'cube-in-a-cube' }));
+        expect(document.querySelector('#cube-info').textContent).toBe('Pattern: Cube in a cube');
     });
 
     it('shows Scramble, and hides Solved cube, for a normal cube', () => {

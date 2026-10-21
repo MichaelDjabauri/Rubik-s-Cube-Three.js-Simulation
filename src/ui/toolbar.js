@@ -1,4 +1,7 @@
-// The buttons at the bottom of the screen and the line of info at the top (all defined in index.html).
+import { findPattern } from '../cube/patterns.js';
+
+// The buttons at the bottom of the screen and the line of info at the top (all defined in index.html):
+// the latest scramble or pattern, or that a colored-in cube is loaded.
 // Each button sends a command like { type: 'undo' } to onCommand when clicked.
 //
 // The toolbar follows the cube's starting point:
@@ -49,6 +52,9 @@ export function createToolbar(onCommand) {
 function infoText(cube) {
     if (cube.startsFromCopy) {
         return 'Your colored-in cube. Reset goes back to it.';
+    }
+    if (cube.lastPattern) {
+        return `Pattern: ${findPattern(cube.lastPattern).name}`;
     }
     return cube.lastScramble ? `Scramble: ${cube.lastScramble}` : '';
 }

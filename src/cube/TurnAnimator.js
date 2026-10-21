@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { FACES } from './faces.js';
 
-const QUARTER_TURN_DURATION_S = 0.2;
-const HALF_TURN_DURATION_S = 0.3;
+export const QUARTER_TURN_DURATION_S = 0.2;
+export const HALF_TURN_DURATION_S = 0.3;
 
 // Animates face turns on the 3D cube one at a time. Turns requested during an animation wait in a queue.
 class TurnAnimator {

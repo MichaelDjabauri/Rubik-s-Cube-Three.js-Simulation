@@ -45,6 +45,8 @@
             --complete-step: #3fbf5f;
             --swatch-border: rgba(255, 255, 255, 0.3);
             --swatch-selected: #ffffff;
+            --card: #2a2a2d;
+            --card-hover: #343438;
             /* The colored bands of the solution player's slider, one per stage */
             --stage-1: #5aa9ff;
             --stage-2: #57c785;
@@ -77,6 +79,8 @@
             --complete-step: #2fa84f;
             --swatch-border: rgba(0, 0, 0, 0.2);
             --swatch-selected: #1d1d1f;
+            --card: #f2f2f5;
+            --card-hover: #e6e6ea;
         }
 
         /* The page itself never scrolls, bounces or gets text-selected; all interaction is with the cube and buttons */
@@ -175,7 +179,7 @@
             transform: translateX(-50%);
             color: var(--text);
             font: 500 18px ui-monospace, Menlo, monospace;
-            /* One line where it fits, wrapping rather than running into the corner buttons (two on the right) */
+            /* One line where it fits, wrapping rather than running into the corner buttons (two on each side) */
             width: max-content;
             max-width: calc(100% - 2 * (16px + 2 * 44px + 12px + 16px));
             text-align: center;
@@ -188,7 +192,7 @@
             display: none;
         }
 
-        /* The round buttons in the top corners: the theme on the left, help on the right */
+        /* The round buttons in the top corners: the theme and patterns on the left, share and help on the right */
         .corner-button {
             position: fixed;
             top: calc(16px + env(safe-area-inset-top));
@@ -211,6 +215,10 @@
             left: calc(16px + env(safe-area-inset-left));
         }
 
+        #gallery-button {
+            left: calc(16px + 44px + 12px + env(safe-area-inset-left));
+        }
+
         .corner-button svg {
             display: block;
             margin: auto;
@@ -222,8 +230,9 @@
             display: none;
         }
 
-        /* The help overlay: a dimmed background with a scrollable panel in the middle */
-        #help {
+        /* The help and the pattern gallery: a dimmed background with a scrollable panel in the middle */
+        #help,
+        #gallery {
             position: fixed;
             inset: 0;
             display: flex;
@@ -232,7 +241,8 @@
             background: var(--dim);
         }
 
-        .help-panel {
+        .help-panel,
+        .gallery-panel {
             width: min(560px, calc(100% - 32px));
             max-height: calc(100% - 32px);
             overflow-y: auto;
@@ -247,7 +257,8 @@
             -webkit-user-select: text;
         }
 
-        .help-panel h2 {
+        .help-panel h2,
+        .gallery-panel h2 {
             margin: 0 0 8px;
             font-size: 24px;
         }
@@ -273,15 +284,199 @@
             font: 600 14px ui-monospace, Menlo, monospace;
         }
 
-        .help-close {
+        .help-close,
+        .gallery-close {
             display: block;
             margin: 20px auto 0;
         }
 
-        /* The one-time hint for new visitors, just above the toolbar */
+        /* The pattern gallery: a card per pattern with a small picture, then "How many repeats?" */
+        .gallery-panel {
+            width: min(680px, calc(100% - 32px));
+        }
+
+        .gallery-panel h2:not(:first-child) {
+            margin-top: 24px;
+        }
+
+        .gallery-panel p {
+            margin: 0 0 12px;
+        }
+
+        /* Two columns of cards, each with the picture on the left and the words on the right */
+        .pattern-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        #gallery .pattern-card {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto auto 1fr;
+            column-gap: 14px;
+            row-gap: 2px;
+            align-items: start;
+            padding: 10px 14px 10px 10px;
+            border-radius: 12px;
+            background: var(--card);
+            box-shadow: none;
+            color: var(--text);
+            font: 400 13px/1.3 system-ui, sans-serif;
+            text-align: left;
+        }
+
+        @media (hover: hover) {
+            #gallery .pattern-card:hover {
+                background: var(--card-hover);
+            }
+        }
+
+        #gallery .pattern-card:active {
+            background: var(--card-hover);
+        }
+
+        .pattern-picture {
+            grid-row: 1 / 4;
+            width: 64px;
+            height: 74px;
+        }
+
+        /* The cube's dark plastic, with slightly rounded corners */
+        .pattern-body {
+            fill: #141414;
+            stroke: #141414;
+            stroke-width: 0.12;
+            stroke-linejoin: round;
+        }
+
+        .pattern-name {
+            font-size: 16px;
+        }
+
+        .pattern-about {
+            opacity: 0.8;
+        }
+
+        .pattern-length {
+            margin-top: 4px;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+
+        .repeat-presets,
+        .repeat-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .repeat-preset {
+            padding: 8px 14px;
+            font: 600 16px ui-monospace, Menlo, monospace;
+        }
+
+        .repeat-form {
+            flex-wrap: nowrap;
+            margin-top: 12px;
+        }
+
+        /* 16px text, so phones don't zoom in when the field is tapped */
+        .repeat-form input {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 12px;
+            border: 2px solid var(--swatch-border);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text);
+            font: 500 16px ui-monospace, Menlo, monospace;
+        }
+
+        .repeat-form button {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        .gallery-panel .repeat-error {
+            min-height: 1.45em;
+            margin: 6px 0 0;
+            color: var(--problem);
+        }
+
+        /*
+         * The move history strip, just above the toolbar (32px from the bottom, 46px tall): a chip per move,
+         * scrolling sideways without a scrollbar. With no moves it's invisible but keeps its place, so the
+         * cube doesn't jump when the first move is made.
+         */
+        #history-strip {
+            position: fixed;
+            bottom: calc(32px + 46px + 12px);
+            left: 50%;
+            transform: translateX(-50%);
+            /* As wide as its chips, up to the room left by the face buttons on the right */
+            width: max-content;
+            max-width: min(760px, calc(100% - 2 * 200px));
+            box-sizing: border-box;
+            display: flex;
+            gap: 4px;
+            padding: 5px;
+            border-radius: 12px;
+            background: var(--hint);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            overflow-x: auto;
+            overscroll-behavior: contain;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+            touch-action: pan-x;
+        }
+
+        #history-strip::-webkit-scrollbar {
+            display: none;
+        }
+
+        #history-strip.empty {
+            visibility: hidden;
+        }
+
+        #history-strip .chip {
+            flex-shrink: 0;
+            padding: 5px 9px;
+            border-radius: 7px;
+            background: transparent;
+            box-shadow: none;
+            color: var(--text);
+            font: 600 15px ui-monospace, Menlo, monospace;
+        }
+
+        #history-strip .chip.start {
+            font: 600 13px system-ui, sans-serif;
+        }
+
+        /* Moves that can be redone */
+        #history-strip .chip.ahead {
+            opacity: 0.4;
+        }
+
+        #history-strip .chip.current {
+            background: var(--current-step);
+            color: #ffffff;
+        }
+
+        @media (hover: hover) {
+            #history-strip .chip:hover:not(.current) {
+                background: var(--kbd);
+            }
+        }
+
+        #history-strip .chip:active:not(.current) {
+            background: var(--kbd);
+        }
+
+        /* The one-time hint for new visitors, just above the history strip */
         #hint {
             position: fixed;
-            bottom: 100px;
+            bottom: 140px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -329,9 +524,12 @@
             top: 22%;
             left: 50%;
             transform: translate(-50%, -50%);
+            width: max-content;
+            max-width: calc(100% - 32px);
             display: flex;
             flex-direction: column;
             align-items: center;
+            text-align: center;
             color: var(--solved-text);
             font: 600 22px system-ui, sans-serif;
             text-shadow: var(--solved-shadow);
@@ -366,16 +564,18 @@
             }
         }
 
-        /* While the cube editor or the solution player is open, the normal controls make way for it */
-        body:is(.editing, .solving) :is(.toolbar, #move-buttons, #cube-info, #help-button, #theme-button, #share-button, #hint) {
+        /* While the cube editor, the solution player or the repeat show is open, the normal controls make way for it */
+        body:is(.editing, .solving, .repeating) :is(.toolbar, #move-buttons, #cube-info, #history-strip, #help-button, #theme-button, #share-button, #gallery-button, #hint) {
             display: none;
         }
 
-        /* The "Color my cube" editor and the solution player: a panel at the top and one at the bottom */
+        /* The "Color my cube" editor, the solution player and the repeat show: a panel at the top and one at the bottom */
         .editor-top,
         .editor-bottom,
         .player-top,
-        .player-bottom {
+        .player-bottom,
+        .repeat-top,
+        .repeat-bottom {
             position: fixed;
             left: 50%;
             transform: translateX(-50%);
@@ -386,7 +586,8 @@
         }
 
         .editor-top,
-        .player-top {
+        .player-top,
+        .repeat-top {
             top: calc(20px + env(safe-area-inset-top));
         }
 
@@ -397,7 +598,8 @@
         }
 
         .editor-bottom,
-        .player-bottom {
+        .player-bottom,
+        .repeat-bottom {
             bottom: calc(24px + env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
@@ -491,7 +693,8 @@
         }
 
         .editor-actions button.primary:not(:disabled),
-        .player-actions button.primary:not(:disabled) {
+        .player-actions button.primary:not(:disabled),
+        .repeat-form button.primary {
             background: #8ee59a;
         }
 
@@ -520,6 +723,31 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        /* The repeat show: the sequence, what it's repeating for, and the live count */
+        .repeat-top p {
+            margin: 0;
+        }
+
+        .repeat-sequence {
+            font: 700 44px/1.2 ui-monospace, Menlo, monospace;
+        }
+
+        .repeat-goal {
+            font-size: 15px;
+            opacity: 0.75;
+        }
+
+        .repeat-count {
+            margin-top: 4px;
+            font: 800 34px system-ui, sans-serif;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .repeat-bottom button {
+            padding: 10px 32px;
+            font-size: 16px;
         }
 
         .player-progress {
@@ -606,16 +834,41 @@
                 display: inline;
             }
 
-            /* Just above the face buttons */
+            /* A row just above the face buttons, which start 180px from the bottom */
+            #history-strip {
+                bottom: calc(190px + env(safe-area-inset-bottom));
+                left: 16px;
+                right: 16px;
+                width: auto;
+                max-width: none;
+                transform: none;
+            }
+
+            /* Just above the history strip */
             #hint {
-                bottom: calc(196px + env(safe-area-inset-bottom));
+                bottom: calc(240px + env(safe-area-inset-bottom));
                 font-size: 14px;
+            }
+
+            /* Narrow cards: the picture on top, the words under it */
+            #gallery .pattern-card {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 12px 8px;
+                text-align: center;
+            }
+
+            .pattern-picture {
+                margin-bottom: 6px;
             }
 
             .editor-top,
             .editor-bottom,
             .player-top,
-            .player-bottom {
+            .player-bottom,
+            .repeat-top,
+            .repeat-bottom {
                 left: 16px;
                 right: 16px;
                 width: auto;
@@ -623,8 +876,17 @@
             }
 
             .editor-top,
-            .player-top {
+            .player-top,
+            .repeat-top {
                 top: calc(12px + env(safe-area-inset-top));
+            }
+
+            .repeat-sequence {
+                font-size: 34px;
+            }
+
+            .repeat-bottom {
+                bottom: calc(16px + env(safe-area-inset-bottom));
             }
 
             .player-notation {
@@ -747,20 +1009,31 @@
 
         /* Phones held sideways (short screens): toolbar in a column on the left, compact face buttons on the right */
         @media (max-height: 500px) and (min-width: 701px) {
-            /* The face buttons fill the right side, so the ? button moves to the top-left corner, beside the theme button */
+            /* The face buttons fill the right side, so the ? and share buttons move to the top-left corner,
+               after the theme and pattern buttons */
             #help-button {
-                right: auto;
-                left: calc(16px + 44px + 12px + env(safe-area-inset-left));
-            }
-
-            #share-button {
                 right: auto;
                 left: calc(16px + 2 * (44px + 12px) + env(safe-area-inset-left));
             }
 
-            /* Between the toolbar and the face buttons */
-            #hint {
+            #share-button {
+                right: auto;
+                left: calc(16px + 3 * (44px + 12px) + env(safe-area-inset-left));
+            }
+
+            /* Along the bottom, between the toolbar and the face buttons */
+            #history-strip {
                 bottom: calc(12px + env(safe-area-inset-bottom));
+                left: calc(190px + env(safe-area-inset-left));
+                right: calc(140px + env(safe-area-inset-right));
+                width: auto;
+                max-width: none;
+                transform: none;
+            }
+
+            /* Just above the history strip */
+            #hint {
+                bottom: calc(60px + env(safe-area-inset-bottom));
                 left: calc(190px + env(safe-area-inset-left));
                 right: calc(140px + env(safe-area-inset-right));
                 width: auto;
@@ -796,17 +1069,31 @@
 
             #cube-info {
                 top: calc(8px + env(safe-area-inset-top));
-                /* Narrow enough to stay clear of the three corner buttons */
-                width: 50vw;
+                /* Narrow enough to stay clear of the four corner buttons */
+                width: calc(100% - 2 * (16px + 4 * 44px + 3 * 12px + 12px));
+                max-width: none;
                 white-space: normal;
                 text-align: center;
                 font-size: 14px;
             }
 
-            /* The editor and the solution player squeezed onto a short screen */
+            /* The editor, the solution player and the repeat show squeezed onto a short screen */
             .editor-top,
-            .player-top {
+            .player-top,
+            .repeat-top {
                 top: calc(8px + env(safe-area-inset-top));
+            }
+
+            .repeat-sequence {
+                font-size: 26px;
+            }
+
+            .repeat-count {
+                font-size: 24px;
+            }
+
+            .repeat-bottom {
+                bottom: calc(8px + env(safe-area-inset-bottom));
             }
 
             .player-stage {
@@ -876,6 +1163,23 @@
         </svg>
     </button>
     <div id="toast" role="status" hidden></div>
+    <button id="gallery-button" class="corner-button" title="Patterns and repeats (P)" aria-label="Patterns and repeats">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <g fill="currentColor">
+                <rect x="3" y="3" width="5" height="5" rx="1" />
+                <rect x="16" y="3" width="5" height="5" rx="1" />
+                <rect x="9.5" y="9.5" width="5" height="5" rx="1" />
+                <rect x="3" y="16" width="5" height="5" rx="1" />
+                <rect x="16" y="16" width="5" height="5" rx="1" />
+            </g>
+            <g fill="none" stroke="currentColor" stroke-width="1.6">
+                <rect x="10.3" y="3.8" width="3.4" height="3.4" rx="0.6" />
+                <rect x="3.8" y="10.3" width="3.4" height="3.4" rx="0.6" />
+                <rect x="16.8" y="10.3" width="3.4" height="3.4" rx="0.6" />
+                <rect x="10.3" y="16.8" width="3.4" height="3.4" rx="0.6" />
+            </g>
+        </svg>
+    </button>
     <button id="theme-button" class="corner-button" title="Switch theme" aria-label="Switch theme">
         <svg class="icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
             <circle cx="12" cy="12" r="4.5" />
@@ -906,6 +1210,13 @@
                 <li>The sun or moon button in the corner switches between the dark and light theme.</li>
             </ul>
 
+            <h3>Moves and patterns</h3>
+            <ul>
+                <li>The strip of moves near the bottom shows every move you've made, the latest one highlighted. Tap a move to go back to just after it, or a later one to go forward again, like a video's timeline. <b>Start</b> goes back to the beginning.</li>
+                <li>The grid button in the corner (or <kbd>P</kbd>) opens the <b>patterns</b>: famous ones like the checkerboard and the superflip, played move by move from a solved cube.</li>
+                <li>Under them, <b>How many repeats?</b> repeats a short sequence, like R U, faster and faster until the cube is back where it started, counting as it goes. <kbd>Escape</kbd> stops it.</li>
+            </ul>
+
             <h3>Saving and sharing</h3>
             <ul>
                 <li>Your cube, its moves and the cube you're painting are remembered, even if you close the page.</li>
@@ -928,6 +1239,7 @@
         </div>
     </div>
     <div id="move-buttons"></div>
+    <div id="history-strip" class="empty" role="group" aria-label="Move history"></div>
     <div class="toolbar">
         <button id="scramble" title="Mix up the cube with 25 random moves">
             <span class="label-long">Scramble</span><span class="label-short">Mix</span>
@@ -945,6 +1257,8 @@
     </div>
     <div id="editor" hidden></div>
     <div id="player" hidden></div>
+    <div id="repeat-show" hidden></div>
+    <div id="gallery" hidden></div>
     <script type="module" src="./src/main.js"></script>
 </body>
 

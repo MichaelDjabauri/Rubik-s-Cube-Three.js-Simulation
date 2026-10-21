@@ -8,6 +8,8 @@ import { generateScramble } from './scramble.js';
 const FAST_TURN_DURATION_S = 0.08;
 // After a lot of moves, each rewind turn gets faster so the whole rewind stays this short
 const REWIND_MAX_DURATION_S = 2;
+// Travelling through the history (see travelTo) takes at most this long, however far it goes
+const TRAVEL_MAX_DURATION_S = 1;
 const SCRAMBLE_LENGTH = 25;
 
 // The cube as the rest of the app sees it: the logical state plus the 3D model that shows it.
@@ -21,6 +23,7 @@ class Cube {
         this.history = [];   // Moves made since the last reset, oldest first
         this.redoStack = []; // Undone moves, most recently undone last
         this.lastScramble = null; // Notation of the latest scramble, until the next reset
+        this.lastPattern = null; // The id of the pattern played from solved (see patterns.js), until the next reset
         // Whether the starting point is a cube copied in with the editor, rather than the solved cube
         this.startsFromCopy = false;
         this.startFacelets = SOLVED; // The starting point's 54 stickers
@@ -44,6 +47,7 @@ class Cube {
         const scramble = generateScramble(SCRAMBLE_LENGTH, random);
         this.record(parseMoves(scramble), FAST_TURN_DURATION_S);
         this.lastScramble = scramble;
+        this.lastPattern = null;
         this.beginSolve();
         return scramble;
     }
@@ -68,14 +72,42 @@ class Cube {
     }
 
     // Makes the last undone move again. Returns that move, or null if there was nothing to redo.
-    redo() {
+    // duration: optional length of the turn in seconds, as for undo
+    redo(duration) {
         const move = this.redoStack.pop();
         if (!move) {
             return null;
         }
-        this.perform(move);
+        this.perform(move, duration);
         this.history.push(move);
         return move;
+    }
+
+    // Undoes or redoes moves until the history holds `length` moves, like dragging along a video's
+    // timeline. Quick turns, so even a long way takes about a second. Never sets off a celebration.
+    travelTo(length) {
+        const target = Math.min(Math.max(length, 0), this.history.length + this.redoStack.length);
+        const steps = Math.abs(target - this.history.length);
+        const duration = Math.min(FAST_TURN_DURATION_S, TRAVEL_MAX_DURATION_S / steps);
+        while (this.history.length > target) {
+            this.undo(duration);
+        }
+        while (this.history.length < target) {
+            this.redo(duration);
+        }
+    }
+
+    // Starts a famous pattern (see patterns.js) from a solved cube. Its moves follow one at a time with
+    // playPatternMove, so whatever shows the history can follow along. They go into the history like a
+    // scramble's, so undo and reset work through them, and once the pattern is complete, beginSolve()
+    // makes solving it back by hand count as a solve.
+    startPattern(id) {
+        this.resetToSolved();
+        this.lastPattern = id;
+    }
+
+    playPatternMove(move, duration) {
+        this.record([move], duration);
     }
 
     // Replaces the cube with any arrangement of stickers, e.g. one copied from a real cube in the editor.
@@ -103,6 +135,7 @@ class Cube {
         this.history = [];
         this.redoStack = [];
         this.lastScramble = null;
+        this.lastPattern = null;
         // Back at a copied cube, the user can try solving it again
         this.beginSolve();
     }
@@ -115,12 +148,13 @@ class Cube {
             history: [...this.history],
             redo: [...this.redoStack],
             scramble: this.lastScramble,
+            pattern: this.lastPattern,
             solveMoveCount: this.currentSolve ? this.currentSolve.moveCount : null
         };
     }
 
     // Brings back a cube from a snapshot, showing it straight away without animating the moves
-    restore({ start, history, redo, scramble, solveMoveCount }) {
+    restore({ start, history, redo, scramble, pattern = null, solveMoveCount }) {
         this.startFrom(start ?? SOLVED);
         this.startsFromCopy = start !== null;
         this.state.applyMoves(history);
@@ -129,7 +163,20 @@ class Cube {
         this.history = [...history];
         this.redoStack = [...redo];
         this.lastScramble = scramble;
+        this.lastPattern = pattern;
         this.currentSolve = solveMoveCount === null ? null : { moveCount: solveMoveCount };
+    }
+
+    // Plays a move on the 3D model only, leaving the state and the history as they are. For shows whose
+    // moves add up to nothing, like repeating a sequence until the cube is back where it started.
+    showMove(move, duration) {
+        this.animator.queueMove(move, duration);
+    }
+
+    // Stops every turn and shows the state straight away, e.g. when a show of moves stops halfway
+    showState() {
+        this.animator.clear();
+        this.model.setStickers(this.state.facelets);
     }
 
     get isSolved() {
@@ -142,6 +189,11 @@ class Cube {
 
     get canRedo() {
         return this.redoStack.length > 0;
+    }
+
+    // Whether there's anything to lose by replacing this cube: moves made, or a colored-in cube
+    get hasProgress() {
+        return this.canUndo || this.startsFromCopy;
     }
 
     // Called every frame from the render loop with the seconds since the last frame
@@ -159,6 +211,7 @@ class Cube {
         this.history = [];
         this.redoStack = [];
         this.lastScramble = null;
+        this.lastPattern = null;
         this.currentSolve = null;
     }
 

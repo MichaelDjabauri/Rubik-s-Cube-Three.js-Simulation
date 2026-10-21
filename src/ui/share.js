@@ -2,7 +2,7 @@ import { encodeCube, decodeCube } from '../cube/cubeCode.js';
 import CubeState from '../cube/CubeState.js';
 
 // Sharing a cube by link. The link is this page's address with the cube written after the #
-// (see cubeCode.js): its starting point, the moves made, and the scramble. Opening the link shows
+// (see cubeCode.js): its starting point, the moves made, and the scramble or pattern. Opening the link shows
 // exactly the same cube, and Reset and Undo work the same way as for the person who shared it.
 
 // The link for the cube as it is now
@@ -20,8 +20,8 @@ function linkFor(cubeParts, location) {
 }
 
 // What a link carries: not the redo moves or the solve's move count, which belong to the sharer
-function shareablePart({ start, history, scramble }) {
-    return { start, history, scramble };
+function shareablePart({ start, history, scramble, pattern }) {
+    return { start, history, scramble, pattern };
 }
 
 // Shares a link: on phones and tablets with the system's share sheet; elsewhere it copies the link and
@@ -94,9 +94,8 @@ export function openLinkedCube({
         return null;
     }
 
-    const hasProgress = cube.canUndo || cube.startsFromCopy;
     const isSameCube = encodeCube(shareablePart(snapshot)) === encodeCube(shareablePart(cube.snapshot()));
-    if (hasProgress && !isSameCube && !confirm('Open the shared cube? It replaces the cube you have now.')) {
+    if (cube.hasProgress && !isSameCube &&!confirm('Open the shared cube? It replaces the cube you have now.')) {
         return null;
     }
 

@@ -7,6 +7,7 @@ const FACE_KEYS = new Set(['U', 'D', 'F', 'B', 'R', 'L']);
 //   Ctrl+Z               undo (Cmd+Z also works on a Mac)
 //   Ctrl+Shift+Z         redo (Cmd+Shift+Z also works on a Mac)
 //   ?                    show help
+//   P                    open the patterns
 export function commandForKey({ key, shiftKey, ctrlKey, metaKey, altKey, repeat }) {
     const letter = key.toUpperCase();
     const commandKey = ctrlKey || metaKey;
@@ -24,6 +25,10 @@ export function commandForKey({ key, shiftKey, ctrlKey, metaKey, altKey, repeat 
 
     if (key === '?') {
         return { type: 'help' };
+    }
+
+    if (letter === 'P') {
+        return { type: 'patterns' };
     }
 
     if (FACE_KEYS.has(letter)) {

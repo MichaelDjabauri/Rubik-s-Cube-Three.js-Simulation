@@ -28,6 +28,13 @@ describe('createSolvedMessage', () => {
         expect(element().querySelector('span').textContent).toBe('in 1 move');
     });
 
+    it('shows any title with a line under it', () => {
+        message.showText({ title: '105 repeats', detail: 'of R U to get back to solved' });
+        expect(element().querySelector('strong').textContent).toBe('105 repeats');
+        expect(element().querySelector('span').textContent).toBe('of R U to get back to solved');
+        expect(element().classList.contains('show')).toBe(true);
+    });
+
     it('replaces the previous message when shown again', () => {
         message.show(5);
         message.show(8);

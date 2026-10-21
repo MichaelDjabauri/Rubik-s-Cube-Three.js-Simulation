@@ -43,6 +43,12 @@ describe('commandForKey', () => {
         expect(commandForKey(key('r', { repeat: true }))).toBeNull();
     });
 
+    it('opens the patterns with the P key', () => {
+        expect(commandForKey(key('p'))).toEqual({ type: 'patterns' });
+        expect(commandForKey(key('P', { shiftKey: true }))).toEqual({ type: 'patterns' });
+        expect(commandForKey(key('p', { metaKey: true }))).toBeNull(); // Cmd+P prints
+    });
+
     it('shows help with the ? key', () => {
         expect(commandForKey(key('?', { shiftKey: true }))).toEqual({ type: 'help' });
         expect(commandForKey(key('?', { shiftKey: true, repeat: true }))).toBeNull();

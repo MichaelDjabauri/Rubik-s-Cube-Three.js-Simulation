@@ -472,7 +472,7 @@ describe('Cube snapshot and restore', () => {
     it('has no starting stickers in the snapshot when the cube started solved', () => {
         const cube = new Cube();
         cube.move('R');
-        expect(cube.snapshot()).toEqual({ start: null, history: parseMoves('R'), redo: [], scramble: null, solveMoveCount: null });
+        expect(cube.snapshot()).toEqual({ start: null, history: parseMoves('R'), redo: [], scramble: null, pattern: null, solveMoveCount: null });
     });
 
     it('celebrates a restored solve with the moves counted before and after', () => {
@@ -494,5 +494,156 @@ describe('Cube snapshot and restore', () => {
         cube.resetToSolved();
         expect(cube.snapshot().start).toBeNull();
         expect(cube.startFacelets).toBe(SOLVED);
+    });
+});
+
+describe('Cube travelTo (moving along the history like a video timeline)', () => {
+    function stateAfter(notation) {
+        return new CubeState().applyMoves(parseMoves(notation)).toString();
+    }
+
+    it('goes back by undoing, keeping the moves to redo', () => {
+        const cube = new Cube();
+        cube.move("R U2 F' L");
+        cube.travelTo(1);
+        expect(formatMoves(cube.history)).toBe('R');
+        expect(cube.state.toString()).toBe(stateAfter('R'));
+        finishAnimations(cube);
+        expect(readFacelets(cube.model)).toBe(cube.state.toString());
+    });
+
+    it('goes forward again by redoing', () => {
+        const cube = new Cube();
+        cube.move("R U2 F' L");
+        cube.travelTo(0);
+        expect(cube.state.isSolved()).toBe(true);
+        cube.travelTo(3);
+        expect(formatMoves(cube.history)).toBe("R U2 F'");
+        expect(formatMoves(cube.redoStack)).toBe('L');
+        finishAnimations(cube);
+        expect(readFacelets(cube.model)).toBe(stateAfter("R U2 F'"));
+    });
+
+    it('stays within the moves there are', () => {
+        const cube = new Cube();
+        cube.move('R U');
+        cube.undo();
+        cube.travelTo(10);
+        expect(formatMoves(cube.history)).toBe('R U');
+        cube.travelTo(-3);
+        expect(cube.history).toEqual([]);
+
+        const queued = cube.animator.turnQueue.length;
+        cube.travelTo(0); // Already there
+        expect(cube.animator.turnQueue).toHaveLength(queued);
+    });
+
+    it('travels even a long way in about a second, with quick turns', () => {
+        const cube = new Cube();
+        cube.move("R U R' U' ".repeat(50)); // 200 moves
+        finishAnimations(cube);
+        cube.travelTo(0);
+        for (let frame = 0; frame < 1.1 * 60; frame++) {
+            cube.update(FRAME_SECONDS);
+        }
+        expect(cube.animator.isBusy).toBe(false);
+        expect(readFacelets(cube.model)).toBe(SOLVED);
+    });
+
+    it('never celebrates, even when it lands on the solved cube', () => {
+        const cube = new Cube();
+        const solves = [];
+        cube.onSolved = moveCount => solves.push(moveCount);
+        cube.scramble(seededRandom(5));
+        cube.travelTo(0);
+        cube.travelTo(25);
+        expect(solves).toEqual([]);
+        expect(cube.currentSolve).toEqual({ moveCount: 0 });
+    });
+});
+
+describe('Cube patterns', () => {
+    it('start from a solved cube, and the moves go into the history one at a time', () => {
+        const cube = new Cube();
+        cube.scramble(seededRandom(5));
+        cube.startPattern('checkerboard');
+        expect(cube.state.isSolved()).toBe(true);
+        expect(cube.history).toEqual([]);
+        expect(cube.lastScramble).toBeNull();
+        expect(cube.lastPattern).toBe('checkerboard');
+
+        cube.playPatternMove({ face: 'R', turns: 2 }, 0.5);
+        expect(formatMoves(cube.history)).toBe('R2');
+        expect(cube.animator.turnQueue.at(-1).duration).toBe(0.5);
+    });
+
+    it('leave a copied cube', () => {
+        const cube = new Cube();
+        cube.loadState(new CubeState().applyMoves(parseMoves('R')).toString());
+        cube.startPattern('superflip');
+        expect(cube.startsFromCopy).toBe(false);
+        expect(cube.state.isSolved()).toBe(true);
+    });
+
+    it('are forgotten after a reset or a scramble', () => {
+        const cube = new Cube();
+        cube.startPattern('checkerboard');
+        cube.playPatternMove({ face: 'R', turns: 2 });
+        cube.reset();
+        expect(cube.lastPattern).toBeNull();
+
+        cube.startPattern('checkerboard');
+        cube.scramble(seededRandom(5));
+        expect(cube.lastPattern).toBeNull();
+    });
+
+    it('come back with a snapshot, and older snapshots have none', () => {
+        const original = new Cube();
+        original.startPattern('six-spots');
+        original.playPatternMove({ face: 'U', turns: 1 });
+
+        const restored = new Cube();
+        restored.restore(original.snapshot());
+        expect(restored.lastPattern).toBe('six-spots');
+
+        const { pattern, ...older } = original.snapshot();
+        restored.restore(older);
+        expect(restored.lastPattern).toBeNull();
+    });
+});
+
+describe('Cube hasProgress', () => {
+    it('is true once there are moves to undo, or a copied cube is loaded', () => {
+        const cube = new Cube();
+        expect(cube.hasProgress).toBe(false);
+        cube.move('R');
+        expect(cube.hasProgress).toBe(true);
+        cube.undo();
+        expect(cube.hasProgress).toBe(false);
+        cube.loadState(SOLVED);
+        expect(cube.hasProgress).toBe(true);
+    });
+});
+
+describe('Cube showMove and showState (shows that leave the cube as it is)', () => {
+    it('turns only the 3D model, leaving the state and history alone', () => {
+        const cube = new Cube();
+        cube.showMove({ face: 'R', turns: 1 }, 0.1);
+        finishAnimations(cube);
+        expect(cube.state.isSolved()).toBe(true);
+        expect(cube.history).toEqual([]);
+        expect(readFacelets(cube.model)).toBe(new CubeState().applyMoves(parseMoves('R')).toString());
+    });
+
+    it('jumps the 3D model back to the state, even in the middle of a turn', () => {
+        const cube = new Cube();
+        cube.move('F');
+        finishAnimations(cube);
+        cube.showMove({ face: 'R', turns: 1 });
+        cube.showMove({ face: 'U', turns: 1 });
+        cube.update(0.05);
+        cube.showState();
+        expect(cube.animator.isBusy).toBe(false);
+        expect(readFacelets(cube.model)).toBe(cube.state.toString());
     });
 });

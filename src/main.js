@@ -23,6 +23,9 @@ import { createCubeMemory } from './ui/savedCube.js';
 import { createSharer, setUpShareButton, shareLink, solutionLink, openLinkedCube } from './ui/share.js';
 import { createSolutionPlayer } from './ui/solutionPlayer.js';
 import { createToast } from './ui/toast.js';
+import { createHistoryStrip } from './ui/historyStrip.js';
+import { createGallery } from './ui/gallery.js';
+import { createRepeatShow } from './ui/repeatShow.js';
 
 // This file sets everything up first and starts it at the very end, so nothing runs before it exists.
 // Where two parts need each other, a small arrow function like () => editor.open() looks the other
@@ -66,9 +69,10 @@ const picker = createStickerPicker({ camera, canvas, cubeModel: cube.model });
 // The browser remembers the cube and the editor's draft, so a reload never loses them
 const memory = createCubeMemory();
 
-// After anything changes the cube: refresh the buttons and remember the cube
+// After anything changes the cube: refresh the buttons and the history strip, and remember the cube
 function cubeChanged() {
     toolbar.update(cube);
+    historyStrip.update(cube);
     memory.saveCube(cube);
 }
 
@@ -84,12 +88,16 @@ const runCommand = createCommandRunner({
         celebration.stop();
         player.open();
     },
+    openGallery: () => gallery.open(),
+    // A pattern that's still playing finishes first, so it's never left half done
+    beforeEach: () => gallery.finishPattern(),
     afterEach: cubeChanged
 });
 
-// Buttons: the toolbar at the bottom and the face buttons on the right
+// Buttons: the toolbar at the bottom, the face buttons on the right, and the strip of moves made
 const toolbar = createToolbar(runCommand);
 createMoveButtons(runCommand, notation => cube.model.highlightFace(notation));
+const historyStrip = createHistoryStrip(runCommand);
 
 // The "Color my cube" editor
 const editor = createEditor({
@@ -112,7 +120,13 @@ const toast = createToast();
 
 // Sharing a cube by link, and opening a cube from a link (the part of the address after the #)
 const share = createSharer({ showMessage: toast.show });
-setUpShareButton({ getLink: () => shareLink(cube), share });
+setUpShareButton({
+    getLink: () => {
+        gallery.finishPattern(); // Never share half a pattern
+        return shareLink(cube);
+    },
+    share
+});
 
 // The solution player: the app's solution, step by step, or as an auto-solve show
 const player = createSolutionPlayer({
@@ -127,16 +141,31 @@ const player = createSolutionPlayer({
     onClose: cubeChanged
 });
 
+// The pattern gallery, opened with the grid button or the P key: famous patterns to play, and
+// "How many repeats?", which repeats a sequence until the cube is back where it started
+const gallery = createGallery({
+    cube,
+    onChange: cubeChanged,
+    beforePlay: () => celebration.stop(),
+    onRepeat: moves => repeatShow.start(moves)
+});
+const repeatShow = createRepeatShow({
+    cube,
+    onFinish: text => celebration.play(() => solvedMessage.showText(text)),
+    onLayoutChange: () => fitCubeOnScreen()
+});
+
 function openCubeFromLink() {
     const opened = openLinkedCube({
         cube,
         showMessage: toast.show,
         beforeOpen: () => {
-            for (const overlay of [editor, player]) {
+            for (const overlay of [editor, player, gallery, repeatShow]) {
                 if (overlay.isOpen) {
                     overlay.close();
                 }
             }
+            gallery.cancelPattern();
             celebration.stop();
         }
     });
@@ -149,12 +178,12 @@ function openCubeFromLink() {
     }
 }
 
-// Keys, and dragging stickers to turn layers. Both are switched off while the editor, help or the
-// solution player is open (the player has its own keys).
-setUpKeyboard({ overlays: [editor, help, player], runCommand });
+// Keys, and dragging stickers to turn layers. Both are switched off while the editor, help, the gallery,
+// the solution player or the repeat show is open (the player has its own keys).
+setUpKeyboard({ overlays: [editor, help, gallery, player, repeatShow], runCommand });
 setUpMouseTurns({
     camera, canvas, cubeModel: cube.model, picker, controls, onCommand: runCommand,
-    isEnabled: () => !editor.isOpen && !player.isOpen
+    isEnabled: () => !editor.isOpen && !player.isOpen && !repeatShow.isOpen
 });
 
 // Double-click or double-tap to swing the camera back to its starting view (not while painting)
@@ -199,7 +228,7 @@ function fitCubeOnScreen() {
 
 // The part of the screen, from the top, that the cube can use: { freeTop, freeBottom } in pixels
 function freeSpace() {
-    for (const [overlay, name] of [[editor, 'editor'], [player, 'player']]) {
+    for (const [overlay, name] of [[editor, 'editor'], [player, 'player'], [repeatShow, 'repeat']]) {
         if (overlay.isOpen) {
             return {
                 freeTop: document.querySelector(`.${name}-top`).getBoundingClientRect().bottom,
@@ -207,8 +236,9 @@ function freeSpace() {
             };
         }
     }
+    // On upright phones, everything above the history strip, which keeps its place even when empty
     if (uprightPhoneLayout.matches) {
-        return { freeBottom: document.querySelector('#move-buttons').getBoundingClientRect().top };
+        return { freeBottom: document.querySelector('#history-strip').getBoundingClientRect().top };
     }
     return {};
 }
@@ -223,6 +253,8 @@ function animate(timestamp) {
     // Never let time run backwards, even if the browser's clock hiccups
     const deltaSeconds = Math.max(timer.getDelta(), 0);
     cube.update(deltaSeconds);
+    gallery.update(deltaSeconds); // Each move of a pattern starts once the last one has landed
+    repeatShow.update(deltaSeconds); // After cube.update(), so the count matches the turns that landed
     idleShowcase.update(deltaSeconds);
     player.update(deltaSeconds); // After the idle showcase, so the auto-solve's circling camera wins
     controls.update(deltaSeconds);
@@ -240,6 +272,7 @@ if (savedCube) {
 openCubeFromLink();
 window.addEventListener('hashchange', openCubeFromLink);
 toolbar.update(cube);
+historyStrip.update(cube);
 showFirstVisitHint();
 fitCubeOnScreen();
 window.addEventListener('resize', fitCubeOnScreen);
